@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>StackCar Command Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Noto+Sans+KR:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- DB 연결을 위한 설정 파일 호출 -->
+    <script src="config.js"></script>
+
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+            background-image: 
+                linear-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: #1e293b; /* slate-800 */
+            overscroll-behavior-y: none;
+        }
+
+        /* Crosshair Corner Details */
+        .crosshair-box {
+            position: relative;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 4px;
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.02);
+        }
+        .crosshair-box::before, .crosshair-box::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            pointer-events: none;
+        }
+        .crosshair-box::before {
+            top: -1px; left: -1px;
+            border-top: 1.5px solid #0ea5e9; /* sky-500 */
+            border-left: 1.5px solid #0ea5e9;
+        }
+        .crosshair-box::after {
+            bottom: -1px; right: -1px;
+            border-bottom: 1.5px solid #0ea5e9;
+            border-right: 1.5px solid #0ea5e9;
+        }
+
+        /* Progress Bar Thin */
+        .progress-thin-bg { background: #e2e8f0; height: 2px; width: 100%; overflow: hidden; margin-top: 6px; }
+        .progress-thin-fill { height: 100%; background: #0ea5e9; transition: width 0.5s ease; }
+        .progress-thin-fill.danger { background: #ef4444; } /* red-500 */
+        .progress-thin-fill.warning { background: #f59e0b; } /* amber-500 */
+
+        /* Hide scrollbar for clean UI */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .fa-spin { animation: spin 1s linear infinite; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center">
+
+    <div class="max-w-3xl w-full p-4 sm:p-6 pb-24 relative z-10 flex flex-col gap-4">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-2">
+            <div>
+                <h1 class="font-orbitron text-xl sm:text-2xl font-bold tracking-widest text-slate-800">STACK<span class="text-sky-500">CAR</span></h1>
+                <p class="font-mono text-[10px] text-slate-500">ID: This_Cold // SYS.ONLINE</p>
+            </div>
+            <!-- 설정 버튼: settings.html로 이동 -->
+            <button onclick="location.href='settings.html'" class="w-10 h-10 rounded-full border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-sky-500 cursor-pointer transition-colors shadow-sm outline-none">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+        </header>
+
+        <!-- Context Panel: Time & Weather -->
+        <div class="grid grid-cols-2 gap-3">
+            <div class="crosshair-box p-3 flex flex-col justify-center">
+                <span class="font-orbitron text-[10px] text-slate-400 tracking-widest mb-1">SYS.TIME</span>
+                <span id="live-clock" class="font-mono text-sm sm:text-base text-slate-800 font-bold">--:--:--</span>
+                <span id="live-date" class="font-mono text-[10px] text-slate-500 mt-0.5">YYYY.MM.DD</span>
+            </div>
+            <div class="crosshair-box p-3 flex justify-between items-center">
+                <div class="flex flex-col">
+                    <span class="font-orbitron text-[10px] text-slate-400 tracking-widest mb-1">ENV.DATA</span>
+                    <span class="font-mono text-sm sm:text-base text-slate-800 font-bold">Seoul, 24°C</span>
+                    <span class="font-mono text-[10px] text-sky-500 mt-0.5">Avg Gas: ₩1,640</span>
+                </div>
+                <i class="fa-solid fa-cloud-sun text-2xl text-slate-300"></i>
+            </div>
+        </div>
+
+        <!-- Telemetry Panel: Odometer & Efficiency -->
+        <div class="crosshair-box p-5">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <span class="font-orbitron text-[10px] text-sky-500 tracking-widest block mb-1">TRAJECTORY</span>
+                    <div class="flex items-end gap-1">
+                        <span class="font-mono text-2xl sm:text-3xl font-bold text-slate-800">84,210</span>
+                        <span class="font-orbitron text-xs text-slate-400 mb-1">KM</span>
+                    </div>
+                </div>
+                <div class="pl-4 border-l border-slate-200">
+                    <span class="font-orbitron text-[10px] text-slate-400 tracking-widest block mb-1">EFFICIENCY</span>
+                    <div class="flex items-end gap-1">
+                        <span class="font-mono text-2xl sm:text-3xl font-bold text-slate-800">12.8</span>
+                        <span class="font-orbitron text-xs text-slate-400 mb-1">KM/L</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cost Analysis Buttons -->
+        <div class="grid grid-cols-2 gap-3">
+            <button class="bg-white border border-slate-200 p-4 rounded-sm shadow-sm flex flex-col items-start hover:border-sky-300 transition-colors group text-left">
+                <div class="w-full flex justify-between items-center mb-2">
+                    <span class="font-orbitron text-[10px] text-slate-400 tracking-widest">MAY. REFUEL</span>
+                    <i class="fa-solid fa-caret-down text-slate-300 group-hover:text-sky-500"></i>
+                </div>
+                <span class="font-mono text-lg font-bold text-slate-800">₩ 124,000</span>
+            </button>
+            <button class="bg-white border border-slate-200 p-4 rounded-sm shadow-sm flex flex-col items-start hover:border-slate-400 transition-colors group text-left">
+                <div class="w-full flex justify-between items-center mb-2">
+                    <span class="font-orbitron text-[10px] text-slate-400 tracking-widest">MAY. SERVICE</span>
+                    <i class="fa-solid fa-caret-down text-slate-300 group-hover:text-slate-600"></i>
+                </div>
+                <span class="font-mono text-lg font-bold text-slate-800">₩ 65,000</span>
+            </button>
+        </div>
+
+        <!-- Diagnostics Panel -->
+        <div class="crosshair-box p-4 mt-2">
+            <div class="flex justify-between items-end mb-4 border-b border-slate-100 pb-2">
+                <h2 class="font-orbitron text-sm font-bold text-slate-800">SYSTEM DIAGNOSTICS</h2>
+                <button onclick="location.href='settings.html'" class="font-mono text-[10px] text-sky-500 hover:text-sky-700 transition-colors">MANAGE_ALL <i class="fa-solid fa-arrow-right ml-1"></i></button>
+            </div>
+            
+            <!-- 자바스크립트로 1~n개의 진단 카드가 스크롤 없이 이곳에 동적으로 렌더링됩니다. -->
+            <div id="diagnostics-list" class="flex flex-col gap-4">
+                <!-- JS injected content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Fixed Bottom Action Bar -->
+    <div class="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-100 via-slate-50/90 to-transparent z-30 flex justify-center gap-3 max-w-3xl mx-auto w-full">
+        <button id="btn-open-refuel" class="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-orbitron font-bold tracking-widest py-4 rounded-sm shadow-lg shadow-sky-200 transition-all active:scale-95 flex justify-center items-center gap-2">
+            <i class="fa-solid fa-gas-pump"></i> REFUEL
+        </button>
+        <button id="btn-open-service" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-orbitron font-bold tracking-widest py-4 rounded-sm shadow-lg shadow-slate-300 transition-all active:scale-95 flex justify-center items-center gap-2">
+            <i class="fa-solid fa-wrench"></i> SERVICE
+        </button>
+    </div>
+
+    <!-- MODAL BACKDROPS & CONTAINERS -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+
+    <!-- 1. REFUEL MODAL (Bottom Sheet) -->
+    <div id="refuel-modal" class="fixed bottom-0 left-0 right-0 z-50 transform translate-y-full transition-transform duration-300 ease-in-out flex justify-center pointer-events-none">
+        <div class="bg-white/95 backdrop-blur-md w-full max-w-3xl rounded-t-xl border-t border-x border-slate-200 shadow-[0_-10px_40px_-15px_rgba(14,165,233,0.3)] p-6 pointer-events-auto max-h-[90vh] overflow-y-auto no-scrollbar">
+            
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-orbitron text-xl font-bold text-slate-800"><i class="fa-solid fa-gas-pump text-sky-500 mr-2"></i>ENERGY_RECHARGE</h3>
+                <button id="btn-close-refuel" class="text-slate-400 hover:text-slate-700 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form class="space-y-5" onsubmit="event.preventDefault();">
+                <!-- Station Name -->
+                <div>
+                    <label class="block font-orbitron text-[10px] text-slate-500 tracking-widest mb-1">STATION NAME (OPTIONAL)</label>
+                    <input type="text" id="input-station" placeholder="주유소명을 입력하세요 (미입력시 '주유소')" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-sm text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all placeholder-slate-300">
+                </div>
+
+                <!-- Odometer -->
+                <div>
+                    <label class="block font-orbitron text-[10px] text-sky-600 tracking-widest mb-1">ODOMETER (KM)</label>
+                    <input type="number" id="input-refuel-odo" value="84210" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-lg text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all">
+                </div>
+
+                <!-- Price & Cost (Auto-calc Volume) -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-orbitron text-[10px] text-slate-500 tracking-widest mb-1">PRICE (KRW/L)</label>
+                        <input type="number" id="input-price" placeholder="1650" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-base text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block font-orbitron text-[10px] text-slate-500 tracking-widest mb-1">TOTAL COST (KRW)</label>
+                        <input type="number" id="input-cost" placeholder="50000" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-base text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all">
+                    </div>
+                </div>
+
+                <!-- Volume Result -->
+                <div class="bg-sky-50 border border-sky-100 p-3 rounded-sm flex justify-between items-center">
+                    <span class="font-orbitron text-[10px] text-sky-600 tracking-widest">CALCULATED VOLUME</span>
+                    <div class="flex items-end gap-1">
+                        <span id="display-volume" class="font-mono text-xl font-bold text-sky-700">0.00</span>
+                        <span class="font-orbitron text-[10px] text-sky-600 mb-1">LITERS</span>
+                    </div>
+                </div>
+
+                <!-- Full Tank Toggle -->
+                <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-sm cursor-pointer hover:bg-slate-50 transition-colors">
+                    <div class="relative">
+                        <input type="checkbox" id="input-fulltank" class="sr-only peer" checked>
+                        <div class="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500 peer-checked:border-sky-500"></div>
+                    </div>
+                    <span class="font-orbitron text-xs text-slate-700 font-bold tracking-wide">FULL TANK OVERRIDE</span>
+                </label>
+
+                <button id="btn-submit-refuel" class="w-full mt-4 bg-sky-500 hover:bg-sky-600 text-white font-orbitron font-bold tracking-widest py-4 rounded-sm shadow-lg shadow-sky-200 transition-all active:scale-[0.98] flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-satellite-dish"></i> SYNC_TO_DB
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. SERVICE MODAL (Bottom Sheet) -->
+    <div id="service-modal" class="fixed bottom-0 left-0 right-0 z-50 transform translate-y-full transition-transform duration-300 ease-in-out flex justify-center pointer-events-none">
+        <div class="bg-white/95 backdrop-blur-md w-full max-w-3xl rounded-t-xl border-t border-x border-slate-200 shadow-[0_-10px_40px_-15px_rgba(15,23,42,0.3)] p-6 pointer-events-auto max-h-[90vh] overflow-y-auto no-scrollbar">
+            
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-orbitron text-xl font-bold text-slate-800"><i class="fa-solid fa-wrench text-slate-600 mr-2"></i>SYSTEM_MAINTENANCE</h3>
+                <button id="btn-close-service" class="text-slate-400 hover:text-slate-700 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="space-y-5">
+                <!-- Odometer & Date -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-orbitron text-[10px] text-sky-600 tracking-widest mb-1">ODOMETER (KM)</label>
+                        <input type="number" id="input-service-odo" value="84210" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-lg text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block font-orbitron text-[10px] text-slate-500 tracking-widest mb-1">DATE</label>
+                        <input type="date" id="input-service-date" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-sm text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all">
+                    </div>
+                </div>
+
+                <!-- Item Selector Button (Triggers layer popup) -->
+                <div>
+                    <label class="block font-orbitron text-[10px] text-sky-600 tracking-widest mb-1">SYSTEM MAINTENANCE ITEM</label>
+                    <button type="button" id="btn-open-item-selector" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-lg text-slate-800 text-left flex justify-between items-center focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all hover:bg-slate-100 outline-none">
+                        <div class="flex flex-col">
+                            <span id="selected-item-display" class="text-slate-400 text-sm md:text-base">선택 대기 중...</span>
+                            <span id="selected-item-code" class="font-orbitron text-[10px] text-sky-600 hidden mt-0.5"></span>
+                        </div>
+                        <i class="fa-solid fa-list-ul text-slate-400"></i>
+                    </button>
+                    <!-- Hidden inputs for submission -->
+                    <input type="hidden" id="input-service-item-code">
+                    <input type="hidden" id="input-service-item-name">
+                </div>
+
+                <!-- Cost -->
+                <div>
+                    <label class="block font-orbitron text-[10px] text-slate-500 tracking-widest mb-1">TOTAL COST (KRW)</label>
+                    <input type="number" id="input-service-cost" placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-base text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all">
+                </div>
+
+                <!-- Memo -->
+                <div>
+                    <label class="block font-orbitron text-[10px] text-slate-500 tracking-widest mb-1">ENGINEER'S LOG (MEMO)</label>
+                    <textarea id="input-service-memo" rows="2" placeholder="특이사항 입력..." class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-sm text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all resize-none"></textarea>
+                </div>
+
+                <button id="btn-submit-service" class="w-full mt-6 bg-slate-800 hover:bg-slate-900 text-white font-orbitron font-bold tracking-widest py-4 rounded-sm shadow-lg shadow-slate-200 transition-all active:scale-[0.98] flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-satellite-dish"></i> SYNC_TO_DB
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. ITEM SELECTOR MODAL (Overlay on top of Service Modal) -->
+    <div id="item-selector-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] opacity-0 pointer-events-none transition-opacity duration-300"></div>
+    
+    <div id="item-selector-modal" class="fixed bottom-0 left-0 right-0 z-[70] transform translate-y-full transition-transform duration-300 ease-in-out flex justify-center pointer-events-none">
+        <div class="bg-white/95 backdrop-blur-md w-full max-w-3xl rounded-t-xl border-t border-x border-slate-200 shadow-[0_-10px_40px_-15px_rgba(2,132,199,0.3)] pointer-events-auto h-[85vh] flex flex-col">
+            
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center p-5 border-b border-slate-200 shrink-0">
+                <h3 class="font-orbitron text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-database text-sky-600"></i> ITEM_ARCHIVE
+                </h3>
+                <button id="btn-close-item-selector" class="text-slate-400 hover:text-red-500 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Sticky Search Bar -->
+            <div class="p-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400"></i>
+                    <input type="text" id="input-item-search" placeholder="항목명, 태그 또는 코드 검색..." class="w-full bg-white border border-slate-200 rounded-sm py-3 pl-10 pr-4 font-mono text-sm text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all placeholder-slate-300">
+                </div>
+            </div>
+
+            <!-- Scrollable Item List (Grid Container) -->
+            <div class="flex-1 overflow-y-auto p-4 no-scrollbar" id="item-list-container">
+                <!-- JS will inject items here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- 구글 시트 양방향 통신을 위한 Hidden Iframe & Form -->
+    <!-- ============================================== -->
+    <form id="hidden_form" target="hidden_iframe" method="POST" style="display:none;">
+        <input type="hidden" name="payload" id="payload_input">
+    </form>
+    <iframe name="hidden_iframe" style="display:none;" onload="if(window.isSaving) onSaveSuccess();"></iframe>
+
+
+    <script>
+        /* --- CONFIG & DB LOAD LOGIC --- */
+        const S_ID  = (typeof CONFIG !== 'undefined' && CONFIG.SHEET_ID) ? CONFIG.SHEET_ID : '';
+        const A_URL = (typeof CONFIG !== 'undefined' && CONFIG.API_URL)  ? CONFIG.API_URL  : '';
+        
+        let refuelLogs = [];
+        let serviceLogs = [];
+
+        // DB 기본 아이템
+        let dbItems = [
+            { sortOrder: 1, code: 'ENG-01', name: '🛢️ 엔진오일 & 필터', tag: 'FLUIDS' },
+            { sortOrder: 2, code: 'CAB-01', name: '🌬️ 캐빈(에어컨) 필터', tag: 'FILTERS' },
+            { sortOrder: 3, code: 'ENG-02', name: '⚙️ 에어크리너 필터', tag: 'FILTERS' },
+            { sortOrder: 4, code: 'BRK-01', name: '🛑 프론트 패드', tag: 'BRAKES' },
+            { sortOrder: 5, code: 'BRK-02', name: '🛑 리어 패드', tag: 'BRAKES' },
+            { sortOrder: 6, code: 'BRK-03', name: '💧 브레이크액', tag: 'FLUIDS' },
+            { sortOrder: 7, code: 'TRN-01', name: '⚙️ 미션오일', tag: 'FLUIDS' },
+            { sortOrder: 8, code: 'CHS-02', name: '🛞 타이어 (4본)', tag: 'TIRES' },
+            { sortOrder: 9, code: 'CHS-01', name: '🔧 프론트 로워암', tag: 'CHASSIS' },
+            { sortOrder: 10, code: 'ELC-01', name: '🔋 배터리 (12V)', tag: 'ELEC' },
+            { sortOrder: 99, code: 'ETC-99', name: '✨ 기타 정비/세차', tag: 'ETC' }
+        ];
+
+        // 대시보드 상태 렌더링용 Mock Data (원래는 시트에서 계산된 값을 가져오거나 클라이언트에서 연산)
+        const mockDiagnostics = [
+            { code: 'ENG-01', name: '🛢️ 엔진오일 & 필터', current: 9800, max: 10000, unit: 'KM' },
+            { code: 'BRK-01', name: '🛑 프론트 패드', current: 32000, max: 40000, unit: 'KM' },
+            { code: 'CAB-01', name: '🌬️ 캐빈(에어컨) 필터', current: 5000, max: 15000, unit: 'KM' },
+            { code: 'TRN-01', name: '⚙️ 미션오일', current: 65000, max: 80000, unit: 'KM' },
+            { code: 'CHS-02', name: '🛞 타이어 (4본)', current: 42000, max: 50000, unit: 'KM' }
+        ];
+
+        window.onload = async () => {
+            updateClock();
+            setInterval(updateClock, 1000);
+            renderDiagnostics(); // 진단 항목 동적 렌더링
+            await loadAllDataFromDB();
+        };
+
+        async function loadAllDataFromDB() {
+            if(!S_ID) return;
+            try {
+                let res = await fetch(`https://docs.google.com/spreadsheets/d/${S_ID}/gviz/tq?tqx=out:csv&sheet=stackcar_items`);
+                let parsed = parseCSV(await res.text());
+                if(parsed && parsed.length) dbItems = parsed;
+
+                res = await fetch(`https://docs.google.com/spreadsheets/d/${S_ID}/gviz/tq?tqx=out:csv&sheet=stackcar_refuel`);
+                parsed = parseCSV(await res.text());
+                if(parsed && parsed.length) refuelLogs = parsed;
+
+                res = await fetch(`https://docs.google.com/spreadsheets/d/${S_ID}/gviz/tq?tqx=out:csv&sheet=stackcar_service`);
+                parsed = parseCSV(await res.text());
+                if(parsed && parsed.length) serviceLogs = parsed;
+            } catch(e) {
+                console.warn("DB 로드 실패 (초기 상태 혹은 시트가 없을 수 있습니다)", e);
+            }
+        }
+
+        /* --- DIAGNOSTICS LOGIC (동적 렌더링) --- */
+        function renderDiagnostics() {
+            const container = document.getElementById('diagnostics-list');
+            container.innerHTML = '';
+            
+            // 진행률(current/max)이 높은 순으로 정렬하여 위험 항목을 최상단에 배치
+            const sortedData = [...mockDiagnostics].sort((a, b) => (b.current / b.max) - (a.current / a.max));
+
+            sortedData.forEach(item => {
+                const ratio = item.current / item.max;
+                const percent = Math.min(100, Math.round(ratio * 100));
+                
+                let statusColor = 'text-slate-700';
+                let barColor = '';
+                let icon = '<i class="fa-solid fa-check mr-1 text-slate-400"></i>';
+                
+                if (percent >= 90) {
+                    statusColor = 'text-red-500';
+                    barColor = 'danger'; // bg-ef4444
+                    icon = '<i class="fa-solid fa-triangle-exclamation mr-1"></i>';
+                } else if (percent >= 75) {
+                    statusColor = 'text-amber-500';
+                    barColor = 'warning'; // bg-f59e0b
+                    icon = '<i class="fa-solid fa-triangle-exclamation mr-1"></i>';
+                }
+                
+                // 개수 제한 및 내부 스크롤 없이 (flex-col gap-4) 페이지 흐름에 따라 그대로 쌓이게 함
+                const html = `
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-mono text-xs font-bold ${statusColor}">${icon} ${item.name}</span>
+                            <span class="font-mono text-[10px] text-slate-500">${item.current.toLocaleString()} / ${item.max.toLocaleString()} ${item.unit}</span>
+                        </div>
+                        <div class="progress-thin-bg"><div class="progress-thin-fill ${barColor}" style="width: ${percent}%;"></div></div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        /* --- CLOCK & DATE LOGIC --- */
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-GB', { hour12: false });
+            const dateString = now.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\.\s/g, '.').replace(/\.$/, '');
+            document.getElementById('live-clock').textContent = timeString;
+            document.getElementById('live-date').textContent = dateString;
+        }
+
+        /* --- CSV PARSER (from member.html) --- */
+        function parseCSV(t) {
+            const rows = []; let row = [], cur = '', q = false;
+            for(let i = 0; i < t.length; i++) {
+                let c = t[i], nc = t[i+1];
+                if(c === '"') { if(q && nc === '"') { cur += '"'; i++; } else { q = !q; }
+                } else if(c === ',' && !q) { row.push(cur.replace(/\r/g,'').trim()); cur = '';
+                } else if(c === '\n' && !q) { row.push(cur.replace(/\r/g,'').trim()); rows.push(row); row = []; cur = '';
+                } else { cur += c; }
+            }
+            row.push(cur.replace(/\r/g,'').trim()); rows.push(row);
+            if(rows.length < 2) return [];
+            const hdrs = rows[0];
+            return rows.slice(1).filter(r => r.some(v => v !== '')).map(r => {
+                const o = {}; hdrs.forEach((h, i) => o[h] = r[i] !== undefined ? r[i] : ''); return o;
+            });
+        }
+
+        /* --- SYNC TO DB LOGIC --- */
+        let currentSyncCallback = null;
+        let currentSyncBtn = null;
+        let originalSyncBtnHTML = "";
+
+        function syncDataToCloud(sheetName, dataArray, btnElement, originalHTML, callback) {
+            if(!A_URL) {
+                setTimeout(() => { window.isSaving = true; onSaveSuccess(); }, 1000);
+                currentSyncBtn = btnElement; currentSyncCallback = callback; originalSyncBtnHTML = originalHTML;
+                return;
+            }
+            
+            if(window.isSaving) return;
+            window.isSaving = true;
+            
+            currentSyncBtn = btnElement;
+            currentSyncCallback = callback;
+            originalSyncBtnHTML = originalHTML;
+
+            const payload = { action: 'write', sheetName: sheetName, data: dataArray };
+            document.getElementById('payload_input').value = JSON.stringify(payload);
+            document.getElementById('hidden_form').action = A_URL;
+            document.getElementById('hidden_form').submit();
+        }
+
+        function onSaveSuccess() {
+            window.isSaving = false;
+            if(currentSyncBtn && currentSyncCallback) {
+                currentSyncBtn.innerHTML = '<i class="fa-solid fa-check"></i> SUCCESS';
+                currentSyncBtn.classList.replace('bg-sky-500', 'bg-emerald-500'); 
+                currentSyncBtn.classList.replace('bg-slate-800', 'bg-emerald-500'); 
+                
+                setTimeout(() => {
+                    currentSyncCallback();
+                    setTimeout(() => {
+                        currentSyncBtn.innerHTML = originalSyncBtnHTML;
+                        currentSyncBtn.classList.remove('bg-emerald-500');
+                        if(currentSyncBtn.id.includes('refuel')) currentSyncBtn.classList.add('bg-sky-500');
+                        else currentSyncBtn.classList.add('bg-slate-800');
+                    }, 300);
+                }, 800);
+            }
+        }
+
+
+        /* --- MODAL CONTROLLERS --- */
+        const backdrop = document.getElementById('modal-backdrop');
+        const refuelModal = document.getElementById('refuel-modal');
+        const serviceModal = document.getElementById('service-modal');
+
+        function openModal(modal) {
+            backdrop.classList.remove('opacity-0', 'pointer-events-none');
+            modal.classList.remove('translate-y-full', 'pointer-events-none');
+        }
+
+        function closeAllModals() {
+            backdrop.classList.add('opacity-0', 'pointer-events-none');
+            refuelModal.classList.add('translate-y-full', 'pointer-events-none');
+            serviceModal.classList.add('translate-y-full', 'pointer-events-none');
+        }
+
+        document.getElementById('btn-open-refuel').addEventListener('click', () => openModal(refuelModal));
+        document.getElementById('btn-close-refuel').addEventListener('click', closeAllModals);
+        
+        // SERVICE 버튼 클릭 시 폼이 아닌 항목(아이템) 선택 모달을 바로 띄움
+        document.getElementById('btn-open-service').addEventListener('click', () => {
+            document.getElementById('input-service-date').valueAsDate = new Date();
+            openItemSelector();
+        });
+
+        document.getElementById('btn-close-service').addEventListener('click', closeAllModals);
+        backdrop.addEventListener('click', closeAllModals);
+
+
+        /* --- REFUEL LOGIC --- */
+        const inPrice = document.getElementById('input-price');
+        const inCost = document.getElementById('input-cost');
+        const outVol = document.getElementById('display-volume');
+
+        function calcVolume() {
+            const p = parseFloat(inPrice.value);
+            const c = parseFloat(inCost.value);
+            if (p > 0 && c > 0) {
+                outVol.textContent = (c / p).toFixed(2);
+                outVol.classList.add('text-sky-600');
+            } else {
+                outVol.textContent = "0.00";
+                outVol.classList.remove('text-sky-600');
+            }
+        }
+        inPrice.addEventListener('input', calcVolume);
+        inCost.addEventListener('input', calcVolume);
+
+        document.getElementById('btn-submit-refuel').addEventListener('click', function() {
+            if(!inPrice.value || !inCost.value) return;
+
+            const logData = {
+                id: 'rf_' + Date.now(),
+                date: document.getElementById('live-date').textContent,
+                station: document.getElementById('input-station').value || '주유소',
+                odo: document.getElementById('input-refuel-odo').value,
+                price: inPrice.value,
+                cost: inCost.value,
+                volume: outVol.textContent,
+                isFullTank: document.getElementById('input-fulltank').checked ? 'TRUE' : 'FALSE'
+            };
+            
+            refuelLogs.push(logData);
+
+            const btn = this;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> SYNCING...';
+            
+            syncDataToCloud('stackcar_refuel', refuelLogs, btn, originalHTML, () => {
+                closeAllModals();
+                inPrice.value = ''; inCost.value = ''; outVol.textContent = "0.00";
+                document.getElementById('input-station').value = '';
+            });
+        });
+
+
+        /* --- ITEM SELECTOR LOGIC --- */
+        const itemSelectorBackdrop = document.getElementById('item-selector-backdrop');
+        const itemSelectorModal = document.getElementById('item-selector-modal');
+        const listContainer = document.getElementById('item-list-container');
+        const searchInput = document.getElementById('input-item-search');
+        
+        const displayItemText = document.getElementById('selected-item-display');
+        const displayItemCode = document.getElementById('selected-item-code');
+        const hiddenInputCode = document.getElementById('input-service-item-code');
+        const hiddenInputName = document.getElementById('input-service-item-name');
+
+        function renderItemList(items) {
+            listContainer.innerHTML = '';
+            
+            if (items.length === 0) {
+                listContainer.className = "flex-1 overflow-y-auto p-4 flex items-center justify-center no-scrollbar";
+                listContainer.innerHTML = '<div class="text-center text-slate-400 font-mono text-sm">NO ITEMS FOUND</div>';
+                return;
+            } else {
+                listContainer.className = "flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 content-start no-scrollbar";
+            }
+
+            const sortedItems = [...items].sort((a, b) => a.sortOrder - b.sortOrder);
+            
+            sortedItems.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left p-3 border border-slate-200 bg-white rounded-sm hover:border-sky-400 hover:bg-slate-50 transition-all group cursor-pointer flex flex-col gap-1.5`;
+                
+                btn.innerHTML = `
+                    <div class="flex justify-between items-center w-full pointer-events-none">
+                        <span class="font-orbitron text-[9px] text-slate-400 tracking-wider group-hover:text-sky-500 transition-colors">${item.code}</span>
+                        <span class="font-orbitron text-[8px] text-slate-500 px-1 py-0.5 bg-slate-100 rounded-sm">${item.tag}</span>
+                    </div>
+                    <div class="w-full pointer-events-none">
+                        <span class="font-mono text-sm font-bold text-slate-800 leading-tight block truncate w-full">${item.name}</span>
+                    </div>
+                `;
+                
+                btn.addEventListener('click', () => {
+                    displayItemText.textContent = item.name;
+                    displayItemText.classList.replace('text-slate-400', 'text-slate-800');
+                    displayItemText.classList.add('font-bold');
+                    
+                    displayItemCode.textContent = `CODE: ${item.code}`;
+                    displayItemCode.classList.remove('hidden');
+                    
+                    hiddenInputCode.value = item.code;
+                    hiddenInputName.value = item.name;
+                    
+                    closeItemSelector();
+                    
+                    // 항목 선택 후 서비스 입력 폼 모달 열기
+                    openModal(serviceModal);
+                });
+                listContainer.appendChild(btn);
+            });
+        }
+
+        function openItemSelector() {
+            itemSelectorBackdrop.classList.remove('opacity-0', 'pointer-events-none');
+            itemSelectorModal.classList.remove('translate-y-full');
+            renderItemList(dbItems);
+            setTimeout(() => searchInput.focus(), 300);
+        }
+
+        function closeItemSelector() {
+            itemSelectorBackdrop.classList.add('opacity-0', 'pointer-events-none');
+            itemSelectorModal.classList.add('translate-y-full');
+            searchInput.value = '';
+        }
+
+        // 서비스 입력 폼 내부의 CHANGE 버튼 클릭 시 다시 선택기 띄움
+        document.getElementById('btn-open-item-selector').addEventListener('click', openItemSelector);
+        document.getElementById('btn-close-item-selector').addEventListener('click', closeItemSelector);
+        itemSelectorBackdrop.addEventListener('click', closeItemSelector);
+
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = dbItems.filter(item => 
+                item.name.toLowerCase().includes(term) || 
+                item.code.toLowerCase().includes(term) ||
+                item.tag.toLowerCase().includes(term)
+            );
+            renderItemList(filtered);
+        });
+
+        /* --- SERVICE LOGIC --- */
+        document.getElementById('btn-submit-service').addEventListener('click', function() {
+            if(!hiddenInputCode.value) {
+                displayItemText.classList.add('text-red-500');
+                displayItemText.textContent = 'ERROR: ITEM NOT SELECTED';
+                setTimeout(() => {
+                    displayItemText.classList.remove('text-red-500');
+                    displayItemText.textContent = '선택 대기 중...';
+                }, 1500);
+                return;
+            }
+
+            const logData = {
+                id: 'sv_' + Date.now(),
+                date: document.getElementById('input-service-date').value,
+                odo: document.getElementById('input-service-odo').value,
+                code: hiddenInputCode.value,
+                name: hiddenInputName.value,
+                cost: document.getElementById('input-service-cost').value,
+                memo: document.getElementById('input-service-memo').value
+            };
+            
+            serviceLogs.push(logData);
+
+            const btn = this;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> SYNCING...';
+            
+            syncDataToCloud('stackcar_service', serviceLogs, btn, originalHTML, () => {
+                closeAllModals();
+                hiddenInputCode.value = ''; hiddenInputName.value = '';
+                displayItemText.textContent = '선택 대기 중...';
+                displayItemText.classList.replace('text-slate-800', 'text-slate-400');
+                displayItemText.classList.remove('font-bold');
+                displayItemCode.classList.add('hidden');
+                document.getElementById('input-service-cost').value = '';
+                document.getElementById('input-service-memo').value = '';
+            });
+        });
+    </script>
+</body>
+</html>
