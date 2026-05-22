@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>StackCar - Configuration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Noto+Sans+KR:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- DB 연결 설정 -->
+    <script src="config.js"></script>
+
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f8fafc;
+            background-image: 
+                linear-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: #1e293b;
+            overscroll-behavior-y: none;
+        }
+
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        .font-mono { font-family: 'Share Tech Mono', monospace; }
+
+        .sc-input { 
+            width: 100%; background: transparent; border: none; 
+            border-bottom: 1px solid #94a3b8; padding: 10px 0; outline: none; 
+            transition: border-color 0.3s; color: #0f172a; 
+        }
+        .sc-input:focus { border-bottom-color: #3b82f6; }
+        .sc-input::placeholder { color: #94a3b8; }
+
+        /* Item Card Hover Effect */
+        .item-card {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            transition: all 0.2s ease-in-out;
+        }
+        .item-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+            transform: translateY(-1px);
+        }
+
+        /* Hide scrollbar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Toast Message */
+        #toast { 
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%); 
+            background: #0f172a; color: #fff; padding: 12px 28px; border-radius: 99px; 
+            font-size: 13px; font-weight: 800; opacity: 0; transition: all 0.4s; 
+            z-index: 10000; box-shadow: 0 10px 24px rgba(0,0,0,0.15); pointer-events: none; 
+            font-family: 'Share Tech Mono', monospace;
+        }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(10px); }
+
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .fa-spin { animation: spin 1s linear infinite; display: inline-block; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center">
+
+    <div class="max-w-3xl w-full p-4 sm:p-6 pb-24 relative z-10 flex flex-col h-screen">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-center border-b border-slate-300 pb-4 mb-4 shrink-0">
+            <div class="flex items-center gap-4">
+                <button onclick="location.href='stackcar_app.html'" class="w-10 h-10 rounded-sm border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:text-blue-500 hover:border-blue-500 transition-colors shadow-sm outline-none">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div>
+                    <h1 class="font-orbitron text-xl font-bold tracking-widest text-slate-800">SYSTEM<span class="text-slate-400">_CONFIG</span></h1>
+                    <p class="font-mono text-[10px] text-slate-500">MAINTENANCE ITEM ARCHIVE</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <div class="hidden sm:flex items-center gap-2 text-[10px] font-orbitron font-bold text-slate-400">
+                    <div id="sync-dot" class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                    <span id="sync-text">DB_CONNECTED</span>
+                </div>
+                <button id="btn-sync-manual" onclick="commitToCloud()" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-sm font-orbitron text-xs font-bold tracking-widest hover:border-slate-800 hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2">
+                    <i id="sync-icon" class="fa-solid fa-cloud-arrow-up"></i>
+                    <span class="hidden sm:inline">SYNC</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Toolbar -->
+        <div class="flex justify-between items-end mb-4 shrink-0">
+            <div class="font-mono text-sm font-bold text-slate-600">
+                TOTAL: <span id="item-count" class="text-blue-600">0</span> ITEMS
+            </div>
+            <button onclick="openEditModal(-1)" class="bg-slate-800 text-white px-5 py-2.5 rounded-sm font-orbitron text-xs font-bold tracking-widest hover:bg-blue-600 transition-colors shadow-md flex items-center gap-2">
+                <i class="fa-solid fa-plus"></i> ADD_ITEM
+            </button>
+        </div>
+
+        <!-- Item List Area -->
+        <div id="item-list-container" class="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-10">
+            <div class="text-center text-slate-400 font-mono text-sm mt-10">
+                <i class="fa-solid fa-spinner fa-spin mr-2"></i>LOADING DATABASE...
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ================= EDIT MODAL ================= -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 opacity-0 pointer-events-none transition-opacity duration-300" onclick="closeEditModal()"></div>
+    
+    <div id="edit-modal" class="fixed bottom-0 left-0 w-full bg-white rounded-t-2xl md:rounded-lg md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[500px] md:h-fit z-50 shadow-2xl transition-transform transform translate-y-full md:translate-y-0 opacity-0 pointer-events-none">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-3">
+                <h3 id="modal-title" class="font-orbitron text-lg font-bold text-slate-800 tracking-widest">COMPONENT_DETAILS</h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-700 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <input type="hidden" id="ed-idx">
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] text-slate-500 font-orbitron tracking-widest block mb-1">CODE (ID)</label>
+                        <input type="text" id="ed-code" placeholder="예: ENG-01" class="sc-input font-mono font-bold text-blue-600 uppercase">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-500 font-orbitron tracking-widest block mb-1">TAG (CATEGORY)</label>
+                        <input type="text" id="ed-tag" placeholder="예: FLUIDS" class="sc-input font-mono font-bold uppercase">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="text-[10px] text-slate-500 font-orbitron tracking-widest block mb-1">ITEM NAME</label>
+                    <input type="text" id="ed-name" placeholder="예: 🛢️ 엔진오일 & 필터" class="sc-input font-bold">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] text-slate-500 font-orbitron tracking-widest block mb-1">INTERVAL (KM)</label>
+                        <input type="number" id="ed-km" placeholder="예: 10000" class="sc-input font-mono text-lg">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-500 font-orbitron tracking-widest block mb-1">INTERVAL (MONTHS)</label>
+                        <input type="number" id="ed-month" placeholder="예: 12" class="sc-input font-mono text-lg">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[10px] text-slate-500 font-orbitron tracking-widest block mb-1">SORT ORDER</label>
+                    <input type="number" id="ed-order" placeholder="정렬 순서 (낮을수록 상단)" class="sc-input font-mono">
+                </div>
+
+                <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
+                    <button id="btn-delete" onclick="deleteItem()" class="text-rose-500 font-bold text-xs tracking-widest font-orbitron hover:bg-rose-50 px-4 py-2 rounded-sm transition">
+                        DELETE
+                    </button>
+                    <button onclick="saveItem()" class="bg-blue-600 text-white font-orbitron font-bold tracking-widest text-xs px-8 py-3 rounded-sm hover:bg-blue-700 shadow-md transition">
+                        SAVE_CONFIG
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"></div>
+
+    <!-- ================= 구글 시트 양방향 통신 (Iframe & Form) ================= -->
+    <form id="hidden_form" target="hidden_iframe" method="POST" style="display:none;">
+        <input type="hidden" name="payload" id="payload_input">
+    </form>
+    <iframe name="hidden_iframe" style="display:none;" onload="if(window.isSaving) onSaveSuccess();"></iframe>
+
+    <!-- ================= SCRIPTS ================= -->
+    <script>
+        // 1. CONFIG & STATE
+        const S_ID  = (typeof CONFIG !== 'undefined' && CONFIG.SHEET_ID) ? CONFIG.SHEET_ID : '';
+        const A_URL = (typeof CONFIG !== 'undefined' && CONFIG.API_URL)  ? CONFIG.API_URL  : '';
+        
+        let dbItems = [];
+
+        window.onload = async () => {
+            await loadItemsFromDB();
+        };
+
+        // 2. FETCH FROM GOOGLE SHEETS
+        async function loadItemsFromDB() {
+            if(!S_ID) {
+                document.getElementById('item-list-container').innerHTML = `<div class="text-center text-rose-500 font-mono mt-10">ERROR: CONFIG SHEET_ID MISSING</div>`;
+                return;
+            }
+            try {
+                // Settings 페이지는 'maintenance_items'만 읽고 씁니다.
+                const res = await fetch(`https://docs.google.com/spreadsheets/d/${S_ID}/gviz/tq?tqx=out:csv&sheet=maintenance_items`);
+                const parsed = parseCSV(await res.text());
+                
+                if(parsed && parsed.length > 0) {
+                    dbItems = parsed;
+                }
+                renderItems();
+            } catch(e) {
+                console.error(e);
+                document.getElementById('item-list-container').innerHTML = `<div class="text-center text-rose-500 font-mono mt-10">FAILED TO LOAD DATABASE</div>`;
+            }
+        }
+
+        // 3. RENDER ITEMS
+        function renderItems() {
+            const container = document.getElementById('item-list-container');
+            document.getElementById('item-count').textContent = dbItems.length;
+            
+            if(dbItems.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 font-mono mt-10">NO ITEMS CONFIGURED. ADD NEW ITEM.</div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            // Sort by Order
+            const sortedItems = [...dbItems].sort((a, b) => Number(a.order) - Number(b.order));
+
+            sortedItems.forEach((item) => {
+                // Find original index for editing
+                const originalIdx = dbItems.findIndex(orig => orig.id === item.id);
+                
+                const card = document.createElement('div');
+                card.className = "item-card p-4 rounded-sm flex justify-between items-center cursor-pointer";
+                card.onclick = () => openEditModal(originalIdx);
+                
+                // 표시용 포맷팅 (월 주기가 빈값이면 표시안함)
+                const monthDisplay = item.interval_month ? ` / ${item.interval_month}M` : '';
+                
+                card.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-slate-50 border border-slate-200 rounded-sm flex items-center justify-center font-mono text-[10px] font-bold text-blue-500">
+                            ${item.order || '-'}
+                        </div>
+                        <div class="flex flex-col">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-orbitron text-[10px] font-bold text-slate-500 tracking-wider">[${item.id}]</span>
+                                <span class="font-orbitron text-[9px] bg-slate-100 px-1.5 py-0.5 rounded-sm text-slate-500">${item.tag}</span>
+                            </div>
+                            <span class="font-bold text-slate-800 leading-tight">${item.name}</span>
+                        </div>
+                    </div>
+                    <div class="text-right flex flex-col items-end">
+                        <span class="font-mono text-sm font-bold text-slate-600">${Number(item.interval_km).toLocaleString()} KM</span>
+                        <span class="font-orbitron text-[9px] text-slate-400 tracking-wider">${monthDisplay}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // 4. MODAL CONTROLS
+        const backdrop = document.getElementById('modal-backdrop');
+        const editModal = document.getElementById('edit-modal');
+        const delBtn = document.getElementById('btn-delete');
+
+        function openEditModal(idx) {
+            document.getElementById('ed-idx').value = idx;
+            
+            if(idx === -1) {
+                // Add New Mode
+                document.getElementById('modal-title').textContent = "ADD_NEW_COMPONENT";
+                delBtn.style.display = 'none';
+                document.getElementById('ed-code').value = '';
+                document.getElementById('ed-name').value = '';
+                document.getElementById('ed-tag').value = '';
+                document.getElementById('ed-km').value = '';
+                document.getElementById('ed-month').value = '';
+                document.getElementById('ed-order').value = dbItems.length + 1; // 기본 순서는 마지막
+            } else {
+                // Edit Mode
+                document.getElementById('modal-title').textContent = "EDIT_COMPONENT";
+                delBtn.style.display = 'block';
+                const item = dbItems[idx];
+                document.getElementById('ed-code').value = item.id || '';
+                document.getElementById('ed-name').value = item.name || '';
+                document.getElementById('ed-tag').value = item.tag || '';
+                document.getElementById('ed-km').value = item.interval_km || '';
+                document.getElementById('ed-month').value = item.interval_month || '';
+                document.getElementById('ed-order').value = item.order || '';
+            }
+            
+            backdrop.classList.remove('opacity-0', 'pointer-events-none');
+            editModal.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-full');
+        }
+
+        function closeEditModal() {
+            backdrop.classList.add('opacity-0', 'pointer-events-none');
+            editModal.classList.add('translate-y-full');
+            setTimeout(() => {
+                editModal.classList.add('opacity-0', 'pointer-events-none');
+            }, 300);
+        }
+
+        // 5. SAVE & DELETE (Update array + Trigger Sync)
+        function saveItem() {
+            const idx = Number(document.getElementById('ed-idx').value);
+            const code = document.getElementById('ed-code').value.trim().toUpperCase();
+            const name = document.getElementById('ed-name').value.trim();
+            const tag = document.getElementById('ed-tag').value.trim().toUpperCase();
+            const km = document.getElementById('ed-km').value.trim();
+            
+            if(!code || !name || !km) {
+                showToast("CODE, NAME, INTERVAL(KM) 항목은 필수입니다.");
+                return;
+            }
+
+            // 중복 코드 체크 (신규 생성일 경우)
+            const isDuplicate = dbItems.some((item, i) => item.id === code && i !== idx);
+            if(isDuplicate) {
+                showToast(`CODE '${code}' 는 이미 존재합니다.`);
+                return;
+            }
+
+            const itemData = {
+                id: code,
+                name: name,
+                tag: tag,
+                interval_km: km,
+                interval_month: document.getElementById('ed-month').value.trim(),
+                order: document.getElementById('ed-order').value.trim() || '99'
+            };
+
+            if(idx === -1) {
+                dbItems.push(itemData);
+            } else {
+                dbItems[idx] = itemData;
+            }
+
+            closeEditModal();
+            renderItems();
+            commitToCloud();
+        }
+
+        function deleteItem() {
+            const idx = Number(document.getElementById('ed-idx').value);
+            if(idx < 0) return;
+            
+            if(confirm(`[${dbItems[idx].id}] 항목을 완전히 삭제하시겠습니까?`)) {
+                dbItems.splice(idx, 1);
+                closeEditModal();
+                renderItems();
+                commitToCloud();
+            }
+        }
+
+        // 6. GOOGLE SHEETS SYNC (Hidden Form Submission)
+        function commitToCloud() {
+            if(!A_URL) {
+                showToast("config.js에 API_URL이 없습니다. (시뮬레이션 완료)");
+                return;
+            }
+            if(window.isSaving) return;
+            window.isSaving = true;
+
+            // UI 변경 (동기화 중)
+            const btn = document.getElementById('btn-sync-manual');
+            const icon = document.getElementById('sync-icon');
+            btn.disabled = true;
+            icon.classList.remove('fa-cloud-arrow-up');
+            icon.classList.add('fa-spinner', 'fa-spin');
+            document.getElementById('sync-dot').classList.replace('bg-emerald-500', 'bg-blue-500');
+            document.getElementById('sync-text').textContent = 'SYNCING...';
+
+            // 데이터 조립 후 전송
+            const payload = { action: 'write', sheetName: 'maintenance_items', data: dbItems };
+            document.getElementById('payload_input').value = JSON.stringify(payload);
+            document.getElementById('hidden_form').action = A_URL;
+            document.getElementById('hidden_form').submit();
+        }
+
+        function onSaveSuccess() {
+            window.isSaving = false;
+            
+            // UI 복구 (동기화 완료)
+            const btn = document.getElementById('btn-sync-manual');
+            const icon = document.getElementById('sync-icon');
+            btn.disabled = false;
+            icon.classList.remove('fa-spinner', 'fa-spin');
+            icon.classList.add('fa-cloud-arrow-up');
+            document.getElementById('sync-dot').classList.replace('bg-blue-500', 'bg-emerald-500');
+            document.getElementById('sync-text').textContent = 'DB_CONNECTED';
+            
+            showToast("설정 데이터가 안전하게 저장되었습니다.");
+        }
+
+        // 7. UTILS
+        function parseCSV(t) {
+            const rows = []; let row = [], cur = '', q = false;
+            for(let i = 0; i < t.length; i++) {
+                let c = t[i], nc = t[i+1];
+                if(c === '"') { if(q && nc === '"') { cur += '"'; i++; } else { q = !q; }
+                } else if(c === ',' && !q) { row.push(cur.replace(/\r/g,'').trim()); cur = '';
+                } else if(c === '\n' && !q) { row.push(cur.replace(/\r/g,'').trim()); rows.push(row); row = []; cur = '';
+                } else { cur += c; }
+            }
+            row.push(cur.replace(/\r/g,'').trim()); rows.push(row);
+            if(rows.length < 2) return [];
+            const hdrs = rows[0];
+            return rows.slice(1).filter(r => r.some(v => v !== '')).map(r => {
+                const o = {}; hdrs.forEach((h, i) => o[h] = r[i] !== undefined ? r[i] : ''); return o;
+            });
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; 
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2500);
+        }
+    </script>
+</body>
+</html>
