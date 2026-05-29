@@ -4,6 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>StackCar Command Center</title>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: {
+                    'orbitron': ['Orbitron', 'sans-serif'],
+                    'mono': ['"Share Tech Mono"', 'monospace'],
+                }
+            }
+        }
+    }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,15 +31,14 @@
         .crosshair-box::before,.crosshair-box::after { content:''; position:absolute; width:10px; height:10px; pointer-events:none; }
         .crosshair-box::before { top:-1px;left:-1px; border-top:1.5px solid #0ea5e9; border-left:1.5px solid #0ea5e9; }
         .crosshair-box::after  { bottom:-1px;right:-1px; border-bottom:1.5px solid #0ea5e9; border-right:1.5px solid #0ea5e9; }
-        .progress-thin-bg  { background:#e2e8f0; height:2px; width:100%; overflow:hidden; margin-top:6px; }
-        .progress-thin-fill { height:100%; background:#0ea5e9; transition:width .5s ease; }
-        .progress-thin-fill.danger  { background:#ef4444; }
-        .progress-thin-fill.warning { background:#f59e0b; }
-        .progress-thin-fill.nodata  { background:#cbd5e1; }
         .no-scrollbar::-webkit-scrollbar { display:none; }
         .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
         @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         .fa-spin { animation:spin 1s linear infinite; }
+        .odo-autofill { background-color:#f0f9ff !important; border-color:#bae6fd !important; }
+        details summary::-webkit-details-marker { display:none; }
+        details[open] .details-chevron { transform:rotate(180deg); }
+        .details-chevron { transition:transform .2s; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center">
@@ -44,6 +55,7 @@
         </button>
     </header>
 
+    <!-- Time + Weather -->
     <div class="grid grid-cols-2 gap-3">
         <div class="crosshair-box p-3 flex flex-col justify-center">
             <span class="font-orbitron text-[10px] text-slate-400 tracking-widest mb-1">SYS.TIME</span>
@@ -53,13 +65,28 @@
         <div class="crosshair-box p-3 flex justify-between items-center">
             <div class="flex flex-col">
                 <span class="font-orbitron text-[10px] text-slate-400 tracking-widest mb-1">ENV.DATA</span>
-                <span class="font-mono text-sm sm:text-base text-slate-800 font-bold">Seoul, 24°C</span>
-                <span class="font-mono text-[10px] text-sky-500 mt-0.5">Avg Gas: ₩1,640</span>
+                <span id="weather-temp" class="font-mono text-sm sm:text-base text-slate-800 font-bold">Seoul, --°C</span>
+                <div class="flex items-center gap-1 mt-0.5">
+                    <span id="gas-price-display" class="font-mono text-[10px] text-sky-500">Avg Gas: ₩--</span>
+                    <button onclick="toggleGasEdit()" class="text-slate-300 hover:text-sky-400 transition-colors ml-0.5 leading-none">
+                        <i class="fa-solid fa-pencil text-[8px]"></i>
+                    </button>
+                </div>
+                <div id="gas-edit-area" class="hidden">
+                    <div class="flex items-center gap-1 mt-1">
+                        <span class="font-mono text-[9px] text-slate-400">₩</span>
+                        <input type="number" id="input-gas-price"
+                            class="w-20 bg-white border border-sky-300 rounded-sm px-1.5 py-0.5 font-mono text-[10px] text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                            placeholder="1640" onkeydown="if(event.key==='Enter')saveGasPrice()">
+                        <button onclick="saveGasPrice()" class="font-orbitron text-[8px] text-white bg-sky-500 px-1.5 py-0.5 rounded-sm">OK</button>
+                    </div>
+                </div>
             </div>
-            <i class="fa-solid fa-cloud-sun text-2xl text-slate-300"></i>
+            <i id="weather-icon" class="fa-solid fa-cloud-sun text-2xl text-slate-300"></i>
         </div>
     </div>
 
+    <!-- Trajectory + Efficiency -->
     <div class="crosshair-box p-5">
         <div class="grid grid-cols-2 gap-4">
             <div>
@@ -75,10 +102,12 @@
                     <span id="display-efficiency" class="font-mono text-2xl sm:text-3xl font-bold text-slate-800">--</span>
                     <span class="font-orbitron text-xs text-slate-400 mb-1">KM/L</span>
                 </div>
+                <span id="display-efficiency-last" class="font-mono text-[10px] text-slate-400 mt-0.5 block"></span>
             </div>
         </div>
     </div>
 
+    <!-- Cost Cards -->
     <div class="grid grid-cols-2 gap-3">
         <button id="btn-cost-refuel" class="bg-white border border-slate-200 p-4 rounded-sm shadow-sm flex flex-col items-start hover:border-sky-300 transition-colors group text-left">
             <div class="w-full flex justify-between items-center mb-2">
@@ -96,12 +125,13 @@
         </button>
     </div>
 
-    <div class="crosshair-box p-4 mt-2">
-        <div class="flex justify-between items-end mb-4 border-b border-slate-100 pb-2">
-            <h2 class="font-orbitron text-sm font-bold text-slate-800">SYSTEM DIAGNOSTICS</h2>
+    <!-- Recent Activity (구 SYSTEM DIAGNOSTICS) -->
+    <div id="diagnostics-card" class="crosshair-box p-4">
+        <div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-1.5">
+            <h2 class="font-orbitron text-sm font-bold text-slate-800">RECENT ACTIVITY</h2>
             <button id="btn-open-manage-diag" class="font-mono text-[10px] text-sky-500 hover:text-sky-700 transition-colors">MANAGE_ALL <i class="fa-solid fa-arrow-right ml-1"></i></button>
         </div>
-        <div id="diagnostics-list" class="flex flex-col gap-4">
+        <div id="diagnostics-list" class="flex flex-col">
             <div class="text-center text-slate-400 font-mono text-sm py-4">LOADING...</div>
         </div>
     </div>
@@ -128,6 +158,18 @@
             <button id="btn-close-refuel" class="text-slate-400 hover:text-slate-700 text-xl"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <form class="space-y-5" onsubmit="event.preventDefault();">
+            <!-- Date: collapsible -->
+            <details id="refuel-date-details" class="border border-slate-100 rounded-sm bg-slate-50/50">
+                <summary class="p-3 cursor-pointer list-none flex justify-between items-center select-none">
+                    <span class="font-orbitron text-[10px] text-slate-400 tracking-widest">DATE &nbsp;<span id="refuel-date-preview" class="text-slate-600 font-mono normal-case text-[10px]">--</span></span>
+                    <i class="fa-solid fa-chevron-down details-chevron text-slate-300 text-[9px]"></i>
+                </summary>
+                <div class="px-3 pb-3">
+                    <input type="date" id="input-refuel-date"
+                        class="w-full bg-white border border-slate-200 rounded-sm p-2.5 font-mono text-sm text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
+                        onchange="document.getElementById('refuel-date-preview').textContent=this.value">
+                </div>
+            </details>
             <div>
                 <label class="block font-orbitron text-[10px] text-slate-500 tracking-widest mb-1">STATION NAME (OPTIONAL)</label>
                 <input type="text" id="input-station" placeholder="주유소명 (미입력 시 '주유소')" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-sm text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all placeholder-slate-300">
@@ -238,6 +280,13 @@
             <h3 id="cost-detail-title" class="font-orbitron text-base font-bold text-slate-800"></h3>
             <button id="btn-close-cost-detail" class="text-slate-400 hover:text-slate-700 text-xl"><i class="fa-solid fa-xmark"></i></button>
         </div>
+        <!-- Preset Buttons -->
+        <div class="flex gap-2 mb-3 shrink-0">
+            <button id="preset-month" onclick="setCostPreset('month')" class="font-orbitron text-[9px] tracking-widest px-2.5 py-1.5 rounded-sm bg-sky-500 text-white transition-colors">이번달</button>
+            <button id="preset-year"  onclick="setCostPreset('year')"  class="font-orbitron text-[9px] tracking-widest px-2.5 py-1.5 rounded-sm border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 transition-colors">올해</button>
+            <button id="preset-all"   onclick="setCostPreset('all')"   class="font-orbitron text-[9px] tracking-widest px-2.5 py-1.5 rounded-sm border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 transition-colors">전체</button>
+        </div>
+        <!-- Date Range -->
         <div class="grid grid-cols-2 gap-3 mb-4 shrink-0">
             <div>
                 <label class="font-orbitron text-[10px] text-slate-400 tracking-widest block mb-1">FROM</label>
@@ -260,8 +309,6 @@
 <div id="manage-backdrop" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[85] opacity-0 pointer-events-none transition-opacity duration-300"></div>
 <div id="manage-modal" class="fixed bottom-0 left-0 right-0 z-[90] transform translate-y-full transition-transform duration-300 ease-in-out flex justify-center pointer-events-none">
     <div class="bg-white w-full max-w-3xl h-[95dvh] rounded-t-xl border-t border-x border-slate-200 shadow-[0_-10px_50px_-10px_rgba(0,0,0,.2)] pointer-events-auto flex flex-col">
-
-        <!-- Header -->
         <div class="flex justify-between items-center px-5 py-4 border-b border-slate-200 shrink-0">
             <div class="flex items-center gap-3">
                 <h3 class="font-orbitron text-sm font-bold text-slate-800"><i class="fa-solid fa-database text-sky-500 mr-2"></i>MANAGE_ALL</h3>
@@ -271,15 +318,12 @@
                 <i class="fa-solid fa-xmark text-xl"></i>
             </button>
         </div>
-
-        <!-- Tabs -->
-        <div class="flex border-b border-slate-200 shrink-0 bg-slate-50">
-            <button id="tab-items"   onclick="switchManageTab('items')"   class="flex-1 py-3 font-orbitron text-[10px] tracking-widest text-sky-500 border-b-2 border-sky-500 transition-colors">ITEMS</button>
-            <button id="tab-service" onclick="switchManageTab('service')" class="flex-1 py-3 font-orbitron text-[10px] tracking-widest text-slate-400 border-b-2 border-transparent transition-colors">SERVICE</button>
-            <button id="tab-refuel"  onclick="switchManageTab('refuel')"  class="flex-1 py-3 font-orbitron text-[10px] tracking-widest text-slate-400 border-b-2 border-transparent transition-colors">REFUEL</button>
+        <!-- Filter Buttons (replaces tabs) -->
+        <div class="flex gap-2 px-4 py-3 border-b border-slate-200 shrink-0 bg-slate-50">
+            <button id="mf-all"     onclick="switchManageFilter('all')"     class="font-orbitron text-[10px] tracking-widest px-3 py-1.5 rounded-sm bg-sky-500 text-white transition-colors">전체</button>
+            <button id="mf-service" onclick="switchManageFilter('service')" class="font-orbitron text-[10px] tracking-widest px-3 py-1.5 rounded-sm border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 transition-colors bg-white">SERVICE</button>
+            <button id="mf-refuel"  onclick="switchManageFilter('refuel')"  class="font-orbitron text-[10px] tracking-widest px-3 py-1.5 rounded-sm border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 transition-colors bg-white">REFUEL</button>
         </div>
-
-        <!-- Content -->
         <div id="manage-content" class="flex-1 overflow-y-auto no-scrollbar p-4"></div>
     </div>
 </div>
@@ -294,20 +338,74 @@
 const S_ID  = (typeof CONFIG!=='undefined'&&CONFIG.SHEET_ID) ? CONFIG.SHEET_ID : '';
 const A_URL = (typeof CONFIG!=='undefined'&&CONFIG.API_URL)  ? CONFIG.API_URL  : '';
 
-/* ==================== DATA (더미 없음) ==================== */
+/* ==================== DATA ==================== */
 let maintenanceItems = [];
 let refuelLogs       = [];
 let serviceLogs      = [];
+let gasPrice = parseInt(localStorage.getItem('stackcar_gas_price')) || 0;
 
 /* ==================== INIT ==================== */
 window.onload = async () => {
     updateClock();
     setInterval(updateClock, 1000);
     setMonthLabels();
+    initGasPriceDisplay();
     await loadAllDataFromDB();
     updateDashboard();
-    renderDiagnostics();
+    loadWeather();
+    setTimeout(renderDiagnostics, 200);
 };
+
+let _resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(renderDiagnostics, 200);
+});
+
+/* ==================== WEATHER (Open-Meteo) ==================== */
+async function loadWeather() {
+    try {
+        const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current=temperature_2m,weather_code&timezone=Asia%2FSeoul');
+        const d = await r.json();
+        const temp = Math.round(d.current.temperature_2m);
+        document.getElementById('weather-temp').textContent = `Seoul, ${temp}\u00b0C`;
+        document.getElementById('weather-icon').className = `fa-solid ${wmoIcon(d.current.weather_code)} text-2xl text-slate-300`;
+    } catch(e) {}
+}
+function wmoIcon(c) {
+    if (c === 0)  return 'fa-sun';
+    if (c <= 2)   return 'fa-cloud-sun';
+    if (c <= 3)   return 'fa-cloud';
+    if (c <= 49)  return 'fa-smog';
+    if (c <= 67)  return 'fa-cloud-rain';
+    if (c <= 77)  return 'fa-snowflake';
+    if (c <= 82)  return 'fa-cloud-showers-heavy';
+    return 'fa-cloud-bolt';
+}
+
+/* ==================== GAS PRICE ==================== */
+function initGasPriceDisplay() {
+    document.getElementById('gas-price-display').textContent =
+        gasPrice > 0 ? `Avg Gas: \u20a9${gasPrice.toLocaleString()}` : 'Avg Gas: \u20a9--';
+}
+function toggleGasEdit() {
+    const area = document.getElementById('gas-edit-area');
+    area.classList.toggle('hidden');
+    if (!area.classList.contains('hidden')) {
+        const inp = document.getElementById('input-gas-price');
+        if (gasPrice > 0) inp.value = gasPrice;
+        inp.focus();
+    }
+}
+function saveGasPrice() {
+    const v = parseInt(document.getElementById('input-gas-price').value);
+    if (v > 0) {
+        gasPrice = v;
+        localStorage.setItem('stackcar_gas_price', v);
+        document.getElementById('gas-price-display').textContent = `Avg Gas: \u20a9${v.toLocaleString()}`;
+    }
+    document.getElementById('gas-edit-area').classList.add('hidden');
+}
 
 /* ==================== DB LOAD ==================== */
 async function loadAllDataFromDB() {
@@ -333,10 +431,10 @@ async function loadAllDataFromDB() {
         res    = await fetch(`https://docs.google.com/spreadsheets/d/${S_ID}/gviz/tq?tqx=out:csv&sheet=maintenance_history`);
         parsed = parseCSV(await res.text());
         if (parsed && parsed.length) serviceLogs = parsed;
-    } catch(e) { console.warn('DB 로드 실패:', e); }
+    } catch(e) { console.warn('DB load failed:', e); }
 }
 
-/* ==================== DASHBOARD CALCS ==================== */
+/* ==================== DASHBOARD ==================== */
 function getCurrentOdo() {
     const all = [
         ...refuelLogs.map(r  => parseFloat(r.odo)  || 0),
@@ -345,7 +443,6 @@ function getCurrentOdo() {
     return all.length ? Math.max(...all) : 0;
 }
 
-// 누적 연비: 첫 기록 제외 (이전 주유량 불명)
 function calcCumulativeEfficiency() {
     const valid = refuelLogs
         .filter(r => parseFloat(r.odo) > 0 && parseFloat(r.volume) > 0)
@@ -353,8 +450,19 @@ function calcCumulativeEfficiency() {
     if (valid.length < 2) return '--';
     const totalKm   = parseFloat(valid[valid.length-1].odo) - parseFloat(valid[0].odo);
     const totalFuel = valid.slice(1).reduce((s,r) => s+(parseFloat(r.volume)||0), 0);
-    if (totalFuel===0 || totalKm<=0) return '--';
+    if (!totalFuel || totalKm <= 0) return '--';
     return (totalKm/totalFuel).toFixed(1);
+}
+
+function calcLastTripEfficiency() {
+    const valid = refuelLogs
+        .filter(r => parseFloat(r.odo) > 0 && parseFloat(r.volume) > 0 && r.is_full_tank === 'TRUE')
+        .sort((a,b) => parseFloat(b.odo)-parseFloat(a.odo));
+    if (valid.length < 2) return null;
+    const km   = parseFloat(valid[0].odo) - parseFloat(valid[1].odo);
+    const fuel = parseFloat(valid[0].volume);
+    if (km <= 0 || fuel <= 0) return null;
+    return (km/fuel).toFixed(1);
 }
 
 function getMonthCost(logs, y, m) {
@@ -371,70 +479,78 @@ function setMonthLabels() {
 
 function updateDashboard() {
     const odo = getCurrentOdo();
-    document.getElementById('display-odo').textContent        = odo>0 ? odo.toLocaleString() : '--';
+    document.getElementById('display-odo').textContent = odo > 0 ? odo.toLocaleString() : '--';
+
     document.getElementById('display-efficiency').textContent = calcCumulativeEfficiency();
+    const lastEff = calcLastTripEfficiency();
+    document.getElementById('display-efficiency-last').textContent = lastEff ? `LAST: ${lastEff} KM/L` : '';
+
     const now=new Date(), y=now.getFullYear(), m=now.getMonth()+1;
-    document.getElementById('display-refuel-cost').textContent  = '₩ '+getMonthCost(refuelLogs, y, m).toLocaleString();
-    document.getElementById('display-service-cost').textContent = '₩ '+getMonthCost(serviceLogs,y, m).toLocaleString();
-    if (odo>0) {
-        document.getElementById('input-refuel-odo').value  = odo;
-        document.getElementById('input-service-odo').value = odo;
+    document.getElementById('display-refuel-cost').textContent  = '\u20a9 '+getMonthCost(refuelLogs, y, m).toLocaleString();
+    document.getElementById('display-service-cost').textContent = '\u20a9 '+getMonthCost(serviceLogs,y, m).toLocaleString();
+
+    if (odo > 0) {
+        setOdoWithIndicator('input-refuel-odo',  odo);
+        setOdoWithIndicator('input-service-odo', odo);
     }
 }
 
-/* ==================== DIAGNOSTICS ==================== */
-function renderDiagnostics() {
-    const container  = document.getElementById('diagnostics-list');
-    const currentOdo = getCurrentOdo();
-    const items      = maintenanceItems.filter(i => i.interval_km > 0);
+function setOdoWithIndicator(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = value;
+    el.classList.add('odo-autofill');
+    el.addEventListener('input', () => el.classList.remove('odo-autofill'), {once:true});
+}
 
-    if (!items.length) {
-        container.innerHTML = '<div class="text-center text-slate-400 font-mono text-sm py-4">데이터 없음</div>';
+/* ==================== DIAGNOSTICS (B안) ==================== */
+function calcMaxDiagItems() {
+    const card = document.getElementById('diagnostics-card');
+    if (!card) return 3;
+    // Absolute page position (scroll-independent)
+    let top = 0, el = card;
+    while (el) { top += el.offsetTop; el = el.offsetParent; }
+    const vh = window.innerHeight;
+    const bottomBarH = 88;
+    const cardOverhead = 52; // p-4 top(16) + header row(28) + pb(8)
+    const available = vh - top - cardOverhead - bottomBarH;
+    return Math.max(0, Math.floor(available / 44));
+}
+
+function renderDiagnostics() {
+    const container = document.getElementById('diagnostics-list');
+    if (!container) return;
+
+    const allLogs = [
+        ...serviceLogs.map(r => ({...r, _type:'service'})),
+        ...refuelLogs.map(r  => ({...r, _type:'refuel'}))
+    ].sort((a,b) => new Date(b.date)-new Date(a.date));
+
+    if (!allLogs.length) {
+        container.innerHTML = '<div class="text-center text-slate-400 font-mono text-sm py-3">데이터 없음</div>';
         return;
     }
 
-    const diagData = items.map(item => {
-        const history = serviceLogs
-            .filter(s => s.mi_code===item.id && parseFloat(s.odo)>0)
-            .sort((a,b) => parseFloat(b.odo)-parseFloat(a.odo));
-        const hasRecord = history.length > 0;
-        const lastOdo   = hasRecord ? parseFloat(history[0].odo) : null;
-        const driven    = hasRecord ? currentOdo-lastOdo : null;
-        const ratio     = hasRecord ? driven/item.interval_km : null;
-        return { name:item.name, driven, max:item.interval_km, ratio, hasRecord };
-    });
+    const maxItems = calcMaxDiagItems();
+    const items = allLogs.slice(0, maxItems);
 
-    diagData.sort((a,b) => {
-        if (a.ratio===null && b.ratio===null) return 0;
-        if (a.ratio===null) return 1;
-        if (b.ratio===null) return -1;
-        return b.ratio-a.ratio;
-    });
+    if (!items.length) { container.innerHTML = ''; return; }
 
-    container.innerHTML = '';
-    diagData.forEach(item => {
-        let statusColor='text-slate-700', barColor='', percent=0;
-        let icon='<i class="fa-solid fa-check mr-1 text-slate-400"></i>', rightText;
-
-        if (!item.hasRecord) {
-            statusColor='text-slate-400'; barColor='nodata';
-            icon='<i class="fa-solid fa-circle-question mr-1 text-slate-300"></i>';
-            rightText=`-- / ${item.max.toLocaleString()} KM`;
-        } else {
-            percent=Math.min(100,Math.round((item.driven/item.max)*100));
-            rightText=`${item.driven.toLocaleString()} / ${item.max.toLocaleString()} KM`;
-            if (percent>=90)      { statusColor='text-red-500';   barColor='danger';  icon='<i class="fa-solid fa-triangle-exclamation mr-1"></i>'; }
-            else if (percent>=75) { statusColor='text-amber-500'; barColor='warning'; icon='<i class="fa-solid fa-triangle-exclamation mr-1"></i>'; }
-        }
-        container.insertAdjacentHTML('beforeend',`
-            <div>
-                <div class="flex justify-between items-center mb-1">
-                    <span class="font-mono text-xs font-bold ${statusColor}">${icon}${item.name}</span>
-                    <span class="font-mono text-[10px] text-slate-500">${rightText}</span>
+    container.innerHTML = items.map(r => {
+        const icon = r._type === 'refuel' ? '\u26fd' : '\ud83d\udd27';
+        const name = r._type === 'refuel' ? (r.station||'\uc8fc\uc720\uc18c') : (r.name||'-');
+        const cost = (parseFloat(r.cost)||0).toLocaleString();
+        return `<div class="flex justify-between items-center py-1.5 border-b border-slate-100 last:border-0">
+            <div class="flex items-center gap-2 min-w-0">
+                <span class="text-sm shrink-0 leading-none">${icon}</span>
+                <div class="min-w-0">
+                    <div class="font-mono text-xs font-bold text-slate-700 truncate">${name}</div>
+                    <div class="font-mono text-[10px] text-slate-400">${r.date||'--'}</div>
                 </div>
-                <div class="progress-thin-bg"><div class="progress-thin-fill ${barColor}" style="width:${percent}%;"></div></div>
-            </div>`);
-    });
+            </div>
+            <div class="font-mono text-xs font-bold ${r._type==='refuel'?'text-sky-600':'text-slate-500'} ml-2 shrink-0">\u20a9${cost}</div>
+        </div>`;
+    }).join('');
 }
 
 /* ==================== CLOCK ==================== */
@@ -463,7 +579,6 @@ function parseCSV(t) {
 /* ==================== SYNC ==================== */
 let currentSyncCallback=null, currentSyncBtn=null, originalSyncBtnHTML='';
 
-// 버튼 flow (REFUEL/SERVICE submit)
 function syncDataToCloud(sheetName, data, btnEl, originalHTML, callback) {
     if (window.isSaving) return;
     window.isSaving=true; window.syncMode='button';
@@ -474,7 +589,6 @@ function syncDataToCloud(sheetName, data, btnEl, originalHTML, callback) {
     document.getElementById('hidden_form').submit();
 }
 
-// MANAGE_ALL flow
 function syncManage(sheetName, data) {
     if (window.isSaving) return;
     window.isSaving=true; window.syncMode='manage';
@@ -482,7 +596,7 @@ function syncManage(sheetName, data) {
     if (!A_URL) {
         setTimeout(() => {
             window.isSaving=false;
-            setManageStatus('✓ SAVED'); setTimeout(()=>setManageStatus(''),2000);
+            setManageStatus('\u2713 SAVED'); setTimeout(()=>setManageStatus(''),2000);
             updateDashboard(); renderDiagnostics(); renderManageContent();
         }, 400);
         return;
@@ -495,13 +609,11 @@ function syncManage(sheetName, data) {
 function onSaveSuccess() {
     window.isSaving=false;
     const mode=window.syncMode||'button'; window.syncMode=null;
-
     if (mode==='manage') {
-        setManageStatus('✓ SAVED'); setTimeout(()=>setManageStatus(''),2000);
+        setManageStatus('\u2713 SAVED'); setTimeout(()=>setManageStatus(''),2000);
         updateDashboard(); renderDiagnostics(); renderManageContent();
         return;
     }
-    // button flow
     if (!currentSyncBtn||!currentSyncCallback) return;
     currentSyncBtn.innerHTML='<i class="fa-solid fa-check"></i> SUCCESS';
     currentSyncBtn.classList.replace('bg-sky-500','bg-emerald-500');
@@ -519,13 +631,13 @@ function onSaveSuccess() {
 
 function setManageStatus(text) {
     const el=document.getElementById('manage-sync-status');
-    if(el){el.textContent=text; el.className='font-mono text-[10px] '+(text.includes('✓')?'text-emerald-500':'text-amber-500');}
+    if(el){el.textContent=text; el.className='font-mono text-[10px] '+(text.includes('\u2713')?'text-emerald-500':'text-amber-500');}
 }
 
 /* ==================== MAIN MODALS ==================== */
-const backdrop=document.getElementById('modal-backdrop');
-const refuelModal=document.getElementById('refuel-modal');
-const serviceModal=document.getElementById('service-modal');
+const backdrop     = document.getElementById('modal-backdrop');
+const refuelModal  = document.getElementById('refuel-modal');
+const serviceModal = document.getElementById('service-modal');
 
 function openModal(modal){
     backdrop.classList.remove('opacity-0','pointer-events-none');
@@ -536,60 +648,68 @@ function closeAllModals(){
     refuelModal.classList.add('translate-y-full','pointer-events-none');
     serviceModal.classList.add('translate-y-full','pointer-events-none');
 }
-document.getElementById('btn-open-refuel').addEventListener('click',()=>openModal(refuelModal));
-document.getElementById('btn-close-refuel').addEventListener('click',closeAllModals);
-document.getElementById('btn-open-service').addEventListener('click',()=>{
-    document.getElementById('input-service-date').valueAsDate=new Date();
+
+document.getElementById('btn-open-refuel').addEventListener('click', () => {
+    const today = new Date().toISOString().slice(0,10);
+    document.getElementById('input-refuel-date').value = today;
+    document.getElementById('refuel-date-preview').textContent = today;
+    document.getElementById('refuel-date-details').removeAttribute('open');
+    openModal(refuelModal);
+});
+document.getElementById('btn-close-refuel').addEventListener('click', closeAllModals);
+document.getElementById('btn-open-service').addEventListener('click', () => {
+    document.getElementById('input-service-date').valueAsDate = new Date();
     openItemSelector();
 });
-document.getElementById('btn-close-service').addEventListener('click',closeAllModals);
-backdrop.addEventListener('click',closeAllModals);
+document.getElementById('btn-close-service').addEventListener('click', closeAllModals);
+backdrop.addEventListener('click', closeAllModals);
 
 /* ==================== REFUEL LOGIC ==================== */
-const inPrice=document.getElementById('input-price');
-const inCost=document.getElementById('input-cost');
-const outVol=document.getElementById('display-volume');
+const inPrice = document.getElementById('input-price');
+const inCost  = document.getElementById('input-cost');
+const outVol  = document.getElementById('display-volume');
 
 function calcVolume(){
-    const p=parseFloat(inPrice.value),c=parseFloat(inCost.value);
-    outVol.textContent=(p>0&&c>0)?(c/p).toFixed(2):'0.00';
+    const p=parseFloat(inPrice.value), c=parseFloat(inCost.value);
+    outVol.textContent = (p>0&&c>0) ? (c/p).toFixed(2) : '0.00';
 }
-inPrice.addEventListener('input',calcVolume);
-inCost.addEventListener('input',calcVolume);
+inPrice.addEventListener('input', calcVolume);
+inCost.addEventListener('input',  calcVolume);
 
-document.getElementById('btn-submit-refuel').addEventListener('click',function(){
-    if(!inPrice.value||!inCost.value)return;
-    const logData={
-        id:Date.now().toString(), date:new Date().toISOString().slice(0,10),
-        station:document.getElementById('input-station').value||'주유소',
-        odo:document.getElementById('input-refuel-odo').value,
-        price:inPrice.value, cost:inCost.value, volume:outVol.textContent,
+document.getElementById('btn-submit-refuel').addEventListener('click', function(){
+    if(!inPrice.value||!inCost.value) return;
+    const logData = {
+        id:          Date.now().toString(),
+        date:        document.getElementById('input-refuel-date').value || new Date().toISOString().slice(0,10),
+        station:     document.getElementById('input-station').value || '\uc8fc\uc720\uc18c',
+        odo:         document.getElementById('input-refuel-odo').value,
+        price:       inPrice.value, cost:inCost.value, volume:outVol.textContent,
         is_full_tank:document.getElementById('input-fulltank').checked?'TRUE':'FALSE'
     };
     refuelLogs.push(logData);
     const btn=this, orig=btn.innerHTML;
     btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> SYNCING...';
-    syncDataToCloud('refuel_tx',refuelLogs,btn,orig,()=>{
+    syncDataToCloud('refuel_tx', refuelLogs, btn, orig, () => {
         closeAllModals();
-        inPrice.value='';inCost.value='';outVol.textContent='0.00';
+        inPrice.value=''; inCost.value=''; outVol.textContent='0.00';
         document.getElementById('input-station').value='';
     });
 });
 
 /* ==================== ITEM SELECTOR ==================== */
-const itemSelectorBackdrop=document.getElementById('item-selector-backdrop');
-const itemSelectorModal=document.getElementById('item-selector-modal');
-const listContainer=document.getElementById('item-list-container');
-const searchInput=document.getElementById('input-item-search');
-const displayItemText=document.getElementById('selected-item-display');
-const displayItemCode=document.getElementById('selected-item-code');
-const hiddenInputCode=document.getElementById('input-service-item-code');
-const hiddenInputName=document.getElementById('input-service-item-name');
+const itemSelectorBackdrop = document.getElementById('item-selector-backdrop');
+const itemSelectorModal    = document.getElementById('item-selector-modal');
+const listContainer        = document.getElementById('item-list-container');
+const searchInput          = document.getElementById('input-item-search');
+const displayItemText      = document.getElementById('selected-item-display');
+const displayItemCode      = document.getElementById('selected-item-code');
+const hiddenInputCode      = document.getElementById('input-service-item-code');
+const hiddenInputName      = document.getElementById('input-service-item-name');
 
 function renderItemList(items){
     if(!items.length){
         listContainer.className='flex-1 overflow-y-auto p-4 flex items-center justify-center no-scrollbar';
-        listContainer.innerHTML='<div class="text-center text-slate-400 font-mono text-sm">데이터 없음<br><span class="text-[10px]">MANAGE_ALL에서 항목을 먼저 등록하세요</span></div>';
+        listContainer.innerHTML='<div class="text-center text-slate-400 font-mono text-sm">\ub370\uc774\ud130 \uc5c6\uc74c<br><span class="text-[10px]">MANAGE_ALL\uc5d0\uc11c \ud56d\ubaa9\uc744 \uba3c\uc800 \ub4f1\ub85d\ud558\uc138\uc694</span></div>';
         return;
     }
     listContainer.className='flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 content-start no-scrollbar';
@@ -597,19 +717,19 @@ function renderItemList(items){
     [...items].sort((a,b)=>(a.order||99)-(b.order||99)).forEach(item=>{
         const btn=document.createElement('button');
         btn.className='w-full text-left p-3 border border-slate-200 bg-white rounded-sm hover:border-sky-400 hover:bg-slate-50 transition-all group cursor-pointer flex flex-col gap-1.5';
-        btn.innerHTML=`
-            <div class="flex justify-between items-center w-full pointer-events-none">
-                <span class="font-orbitron text-[9px] text-slate-400 tracking-wider group-hover:text-sky-500 transition-colors">${item.id}</span>
-                <span class="font-orbitron text-[8px] text-slate-500 px-1 py-0.5 bg-slate-100 rounded-sm">${item.tag}</span>
+        btn.innerHTML=`<div class="flex justify-between items-center w-full pointer-events-none">
+            <span class="font-orbitron text-[9px] text-slate-400 tracking-wider group-hover:text-sky-500 transition-colors">${item.id}</span>
+            <span class="font-orbitron text-[8px] text-slate-500 px-1 py-0.5 bg-slate-100 rounded-sm">${item.tag}</span>
             </div>
             <span class="font-mono text-sm font-bold text-slate-800 leading-tight block truncate w-full pointer-events-none">${item.name}</span>`;
-        btn.addEventListener('click',()=>{
-            displayItemText.textContent=item.name;
+        btn.addEventListener('click', () => {
+            displayItemText.textContent = item.name;
             displayItemText.classList.replace('text-slate-400','text-slate-800');
             displayItemText.classList.add('font-bold');
-            displayItemCode.textContent=`CODE: ${item.id}`;
+            displayItemCode.textContent = `CODE: ${item.id}`;
             displayItemCode.classList.remove('hidden');
-            hiddenInputCode.value=item.id; hiddenInputName.value=item.name;
+            hiddenInputCode.value = item.id;
+            hiddenInputName.value = item.name;
             closeItemSelector(); openModal(serviceModal);
         });
         listContainer.appendChild(btn);
@@ -620,42 +740,46 @@ function openItemSelector(){
     itemSelectorBackdrop.classList.remove('opacity-0','pointer-events-none');
     itemSelectorModal.classList.remove('translate-y-full');
     renderItemList(maintenanceItems);
-    setTimeout(()=>searchInput.focus(),300);
+    setTimeout(() => searchInput.focus(), 300);
 }
 function closeItemSelector(){
     itemSelectorBackdrop.classList.add('opacity-0','pointer-events-none');
     itemSelectorModal.classList.add('translate-y-full');
     searchInput.value='';
 }
-document.getElementById('btn-open-item-selector').addEventListener('click',openItemSelector);
-document.getElementById('btn-close-item-selector').addEventListener('click',closeItemSelector);
-itemSelectorBackdrop.addEventListener('click',closeItemSelector);
-searchInput.addEventListener('input',e=>{
-    const t=e.target.value.toLowerCase();
-    renderItemList(maintenanceItems.filter(i=>i.name.toLowerCase().includes(t)||i.id.toLowerCase().includes(t)||i.tag.toLowerCase().includes(t)));
+document.getElementById('btn-open-item-selector').addEventListener('click', openItemSelector);
+document.getElementById('btn-close-item-selector').addEventListener('click', closeItemSelector);
+itemSelectorBackdrop.addEventListener('click', closeItemSelector);
+searchInput.addEventListener('input', e => {
+    const t = e.target.value.toLowerCase();
+    renderItemList(maintenanceItems.filter(i =>
+        i.name.toLowerCase().includes(t)||i.id.toLowerCase().includes(t)||i.tag.toLowerCase().includes(t)));
 });
 
 /* ==================== SERVICE LOGIC ==================== */
-document.getElementById('btn-submit-service').addEventListener('click',function(){
+document.getElementById('btn-submit-service').addEventListener('click', function(){
     if(!hiddenInputCode.value){
-        displayItemText.classList.add('text-red-500'); displayItemText.textContent='ERROR: ITEM NOT SELECTED';
-        setTimeout(()=>{displayItemText.classList.remove('text-red-500');displayItemText.textContent='선택 대기 중...';},1500);
+        displayItemText.classList.add('text-red-500');
+        displayItemText.textContent='ERROR: ITEM NOT SELECTED';
+        setTimeout(()=>{displayItemText.classList.remove('text-red-500');displayItemText.textContent='\uc120\ud0dd \ub300\uae30 \uc911...';},1500);
         return;
     }
-    const logData={
-        id:Date.now().toString(), date:document.getElementById('input-service-date').value,
-        odo:document.getElementById('input-service-odo').value,
-        mi_code:hiddenInputCode.value, name:hiddenInputName.value,
-        cost:document.getElementById('input-service-cost').value,
-        memo:document.getElementById('input-service-memo').value
+    const logData = {
+        id:      Date.now().toString(),
+        date:    document.getElementById('input-service-date').value,
+        odo:     document.getElementById('input-service-odo').value,
+        mi_code: hiddenInputCode.value,
+        name:    hiddenInputName.value,
+        cost:    document.getElementById('input-service-cost').value,
+        memo:    document.getElementById('input-service-memo').value
     };
     serviceLogs.push(logData);
     const btn=this, orig=btn.innerHTML;
     btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> SYNCING...';
-    syncDataToCloud('maintenance_history',serviceLogs,btn,orig,()=>{
+    syncDataToCloud('maintenance_history', serviceLogs, btn, orig, () => {
         closeAllModals();
-        hiddenInputCode.value='';hiddenInputName.value='';
-        displayItemText.textContent='선택 대기 중...';
+        hiddenInputCode.value=''; hiddenInputName.value='';
+        displayItemText.textContent='\uc120\ud0dd \ub300\uae30 \uc911...';
         displayItemText.classList.replace('text-slate-800','text-slate-400');
         displayItemText.classList.remove('font-bold');
         displayItemCode.classList.add('hidden');
@@ -665,60 +789,83 @@ document.getElementById('btn-submit-service').addEventListener('click',function(
 });
 
 /* ==================== COST DETAIL ==================== */
-let currentCostType=null;
-const costDetailBackdrop=document.getElementById('cost-detail-backdrop');
-const costDetailModal=document.getElementById('cost-detail-modal');
+let currentCostType = null;
+const costDetailBackdrop = document.getElementById('cost-detail-backdrop');
+const costDetailModal    = document.getElementById('cost-detail-modal');
 
 function openCostDetail(type){
-    currentCostType=type;
-    const now=new Date(),y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0');
-    const lastDay=new Date(y,now.getMonth()+1,0).getDate();
-    document.getElementById('cost-filter-from').value=`${y}-${m}-01`;
-    document.getElementById('cost-filter-to').value=`${y}-${m}-${String(lastDay).padStart(2,'0')}`;
-    document.getElementById('cost-detail-title').textContent=type==='refuel'?'⛽ REFUEL HISTORY':'🔧 SERVICE HISTORY';
+    currentCostType = type;
+    document.getElementById('cost-detail-title').textContent = type==='refuel' ? '\u26fd REFUEL HISTORY' : '\ud83d\udd27 SERVICE HISTORY';
     costDetailBackdrop.classList.remove('opacity-0','pointer-events-none');
     costDetailModal.classList.remove('translate-y-full','pointer-events-none');
-    renderCostDetail();
+    setCostPreset('month');
 }
 function closeCostDetail(){
     costDetailBackdrop.classList.add('opacity-0','pointer-events-none');
     costDetailModal.classList.add('translate-y-full','pointer-events-none');
 }
+
+function setCostPreset(type) {
+    const now=new Date(), y=now.getFullYear(), m=String(now.getMonth()+1).padStart(2,'0');
+    const from=document.getElementById('cost-filter-from');
+    const to  =document.getElementById('cost-filter-to');
+    if (type==='month') {
+        const lastDay=new Date(y,now.getMonth()+1,0).getDate();
+        from.value=`${y}-${m}-01`;
+        to.value  =`${y}-${m}-${String(lastDay).padStart(2,'0')}`;
+    } else if (type==='year') {
+        from.value=`${y}-01-01`;
+        to.value  =`${y}-12-31`;
+    } else {
+        from.value='2000-01-01';
+        to.value  =`${y+1}-12-31`;
+    }
+    ['month','year','all'].forEach(t => {
+        const btn=document.getElementById(`preset-${t}`);
+        if (!btn) return;
+        btn.className = t===type
+            ? 'font-orbitron text-[9px] tracking-widest px-2.5 py-1.5 rounded-sm bg-sky-500 text-white transition-colors'
+            : 'font-orbitron text-[9px] tracking-widest px-2.5 py-1.5 rounded-sm border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 transition-colors';
+    });
+    renderCostDetail();
+}
+
 function renderCostDetail(){
     const from=new Date(document.getElementById('cost-filter-from').value);
-    const to=new Date(document.getElementById('cost-filter-to').value);
+    const to  =new Date(document.getElementById('cost-filter-to').value);
     to.setHours(23,59,59,999);
-    const logs=currentCostType==='refuel'?refuelLogs:serviceLogs;
-    const filtered=logs.filter(r=>{const d=new Date(r.date);return d>=from&&d<=to;}).sort((a,b)=>new Date(b.date)-new Date(a.date));
-    const total=filtered.reduce((s,r)=>s+(parseFloat(r.cost)||0),0);
-    document.getElementById('cost-detail-total').textContent='₩ '+total.toLocaleString();
-    const list=document.getElementById('cost-detail-list');
-    if(!filtered.length){list.innerHTML='<div class="text-center text-slate-400 font-mono text-sm py-8">데이터 없음</div>';return;}
-    list.innerHTML=filtered.map(r=>{
+    const logs = currentCostType==='refuel' ? refuelLogs : serviceLogs;
+    const filtered = logs.filter(r=>{const d=new Date(r.date);return d>=from&&d<=to;}).sort((a,b)=>new Date(b.date)-new Date(a.date));
+    const total = filtered.reduce((s,r)=>s+(parseFloat(r.cost)||0),0);
+    document.getElementById('cost-detail-total').textContent = '\u20a9 '+total.toLocaleString();
+    const list = document.getElementById('cost-detail-list');
+    if(!filtered.length){list.innerHTML='<div class="text-center text-slate-400 font-mono text-sm py-8">\ub370\uc774\ud130 \uc5c6\uc74c</div>';return;}
+    list.innerHTML = filtered.map(r => {
         if(currentCostType==='refuel'){
             return`<div class="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-sm">
-                <div class="min-w-0"><div class="font-mono text-xs font-bold text-slate-700">${r.station||'주유소'}</div>
-                <div class="font-mono text-[10px] text-slate-400 truncate">${r.date} · ${parseFloat(r.volume||0).toFixed(2)}L · ${parseFloat(r.price||0).toLocaleString()}원/L · ${parseFloat(r.odo||0).toLocaleString()}km</div></div>
-                <div class="font-mono text-sm font-bold text-sky-600 ml-3 shrink-0">₩${parseFloat(r.cost||0).toLocaleString()}</div></div>`;
+                <div class="min-w-0"><div class="font-mono text-xs font-bold text-slate-700">${r.station||'\uc8fc\uc720\uc18c'}</div>
+                <div class="font-mono text-[10px] text-slate-400 truncate">${r.date} \u00b7 ${parseFloat(r.volume||0).toFixed(2)}L \u00b7 ${parseFloat(r.price||0).toLocaleString()}\uc6d0/L \u00b7 ${parseFloat(r.odo||0).toLocaleString()}km</div></div>
+                <div class="font-mono text-sm font-bold text-sky-600 ml-3 shrink-0">\u20a9${parseFloat(r.cost||0).toLocaleString()}</div></div>`;
         } else {
             return`<div class="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-sm">
                 <div class="min-w-0"><div class="font-mono text-xs font-bold text-slate-700">${r.name||'-'}</div>
-                <div class="font-mono text-[10px] text-slate-400 truncate">${r.date} · ${parseFloat(r.odo||0).toLocaleString()}km${r.memo?' · '+r.memo:''}</div></div>
-                <div class="font-mono text-sm font-bold text-slate-600 ml-3 shrink-0">₩${parseFloat(r.cost||0).toLocaleString()}</div></div>`;
+                <div class="font-mono text-[10px] text-slate-400 truncate">${r.date} \u00b7 ${parseFloat(r.odo||0).toLocaleString()}km${r.memo?' \u00b7 '+r.memo:''}</div></div>
+                <div class="font-mono text-sm font-bold text-slate-600 ml-3 shrink-0">\u20a9${parseFloat(r.cost||0).toLocaleString()}</div></div>`;
         }
     }).join('');
 }
-document.getElementById('btn-cost-refuel').addEventListener('click',()=>openCostDetail('refuel'));
-document.getElementById('btn-cost-service').addEventListener('click',()=>openCostDetail('service'));
-document.getElementById('btn-close-cost-detail').addEventListener('click',closeCostDetail);
-costDetailBackdrop.addEventListener('click',closeCostDetail);
-document.getElementById('cost-filter-from').addEventListener('change',renderCostDetail);
-document.getElementById('cost-filter-to').addEventListener('change',renderCostDetail);
+
+document.getElementById('btn-cost-refuel').addEventListener('click', ()=>openCostDetail('refuel'));
+document.getElementById('btn-cost-service').addEventListener('click', ()=>openCostDetail('service'));
+document.getElementById('btn-close-cost-detail').addEventListener('click', closeCostDetail);
+costDetailBackdrop.addEventListener('click', closeCostDetail);
+document.getElementById('cost-filter-from').addEventListener('change', renderCostDetail);
+document.getElementById('cost-filter-to').addEventListener('change',   renderCostDetail);
 
 /* ==================== MANAGE_ALL ==================== */
-let currentManageTab='items';
-const manageBackdrop=document.getElementById('manage-backdrop');
-const manageModal=document.getElementById('manage-modal');
+let currentManageFilter = 'all';
+const manageBackdrop = document.getElementById('manage-backdrop');
+const manageModal    = document.getElementById('manage-modal');
 
 function openManageAll(){
     manageBackdrop.classList.remove('opacity-0','pointer-events-none');
@@ -729,198 +876,119 @@ function closeManageAll(){
     manageBackdrop.classList.add('opacity-0','pointer-events-none');
     manageModal.classList.add('translate-y-full','pointer-events-none');
 }
-function switchManageTab(tab){
-    currentManageTab=tab;
-    ['items','service','refuel'].forEach(t=>{
-        const btn=document.getElementById(`tab-${t}`);
-        if(t===tab){ btn.className='flex-1 py-3 font-orbitron text-[10px] tracking-widest text-sky-500 border-b-2 border-sky-500 transition-colors'; }
-        else        { btn.className='flex-1 py-3 font-orbitron text-[10px] tracking-widest text-slate-400 border-b-2 border-transparent transition-colors'; }
+function switchManageFilter(filter){
+    currentManageFilter = filter;
+    ['all','service','refuel'].forEach(f => {
+        const btn = document.getElementById(`mf-${f}`);
+        if (!btn) return;
+        btn.className = f===filter
+            ? 'font-orbitron text-[10px] tracking-widest px-3 py-1.5 rounded-sm bg-sky-500 text-white transition-colors'
+            : 'font-orbitron text-[10px] tracking-widest px-3 py-1.5 rounded-sm border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 transition-colors bg-white';
     });
     renderManageContent();
 }
 function renderManageContent(){
-    const c=document.getElementById('manage-content'); if(!c)return;
-    if      (currentManageTab==='items')   renderManageItems(c);
-    else if (currentManageTab==='service') renderManageService(c);
-    else                                   renderManageRefuel(c);
+    const c = document.getElementById('manage-content'); if(!c) return;
+    if      (currentManageFilter==='service') renderManageServiceFull(c);
+    else if (currentManageFilter==='refuel')  renderManageRefuelFull(c);
+    else                                       renderManageAll(c);
 }
 
-const TAG_OPTS=['FLUIDS','FILTERS','BRAKES','TIRES','CHASSIS','ELEC','ETC'];
-function tagSelectHTML(selected,id){
-    return `<select id="${id}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-xs focus:border-sky-500 outline-none">
-        ${TAG_OPTS.map(t=>`<option value="${t}"${t===selected?' selected':''}>${t}</option>`).join('')}
-    </select>`;
+/* --- Build row HTML functions --- */
+function buildSvcRow(r){
+    return `<div class="border border-slate-200 rounded-sm mb-3">
+        <div id="view-svc-${r.id}" class="flex justify-between items-start p-3">
+            <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 mb-0.5">
+                    <span class="font-orbitron text-[8px] px-1 py-0.5 bg-slate-100 text-slate-500 rounded-sm">SVC</span>
+                    <span class="font-mono text-sm font-bold text-slate-800 truncate">${r.name||'-'}</span>
+                </div>
+                <div class="font-mono text-[10px] text-slate-400 mt-0.5">${r.date} \u00b7 ${parseFloat(r.odo||0).toLocaleString()}km \u00b7 \u20a9${parseFloat(r.cost||0).toLocaleString()}${r.memo?' \u00b7 '+r.memo:''}</div>
+            </div>
+            <div class="flex gap-1.5 shrink-0 ml-2">
+                <button onclick="toggleSvcEdit('${r.id}')" class="font-orbitron text-[9px] px-2 py-1 border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 rounded-sm transition-colors">EDIT</button>
+                <button onclick="deleteSvc('${r.id}')" class="font-orbitron text-[9px] px-2 py-1 border border-red-200 text-red-400 hover:bg-red-50 rounded-sm transition-colors">DEL</button>
+            </div>
+        </div>
+        <div id="edit-svc-${r.id}" class="hidden px-3 pb-3 border-t border-slate-100 space-y-2">
+            <div class="grid grid-cols-2 gap-2 pt-3">
+                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">DATE</label>
+                    <input type="date" id="es-date-${r.id}" value="${r.date}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-xs focus:border-sky-500 outline-none"></div>
+                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">ODO (KM)</label>
+                    <input type="number" id="es-odo-${r.id}" value="${r.odo}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-xs focus:border-sky-500 outline-none"></div>
+            </div>
+            <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">COST (KRW)</label>
+                <input type="number" id="es-cost-${r.id}" value="${r.cost}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
+            <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">MEMO</label>
+                <input type="text" id="es-memo-${r.id}" value="${r.memo||''}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
+            <div class="flex gap-2">
+                <button onclick="saveSvcEdit('${r.id}')" class="flex-1 bg-sky-500 text-white font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-sky-600 transition-colors">SAVE</button>
+                <button onclick="toggleSvcEdit('${r.id}')" class="flex-1 bg-slate-100 text-slate-600 font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-slate-200 transition-colors">CANCEL</button>
+            </div>
+        </div>
+    </div>`;
 }
 
-/* --- ITEMS TAB --- */
-function renderManageItems(c){
-    const addForm=`
-        <div class="border border-sky-200 bg-sky-50/40 rounded-sm p-4 mb-4">
-            <div class="font-orbitron text-[10px] text-sky-600 tracking-widest mb-3">+ ADD NEW ITEM</div>
-            <div class="space-y-2">
-                <input type="text" id="new-item-name" placeholder="항목명 (예: 🛢️ 엔진오일)"
-                    class="w-full bg-white border border-slate-200 rounded-sm p-2.5 font-mono text-sm focus:border-sky-500 outline-none placeholder-slate-300">
-                <div class="grid grid-cols-2 gap-2">
-                    ${tagSelectHTML('FLUIDS','new-item-tag')}
-                    <input type="number" id="new-item-order" placeholder="정렬순서"
-                        class="w-full bg-white border border-slate-200 rounded-sm p-2.5 font-mono text-sm focus:border-sky-500 outline-none placeholder-slate-300">
+function buildRefuelRow(r){
+    return `<div class="border border-slate-200 rounded-sm mb-3">
+        <div id="view-rfuel-${r.id}" class="flex justify-between items-start p-3">
+            <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 mb-0.5">
+                    <span class="font-orbitron text-[8px] px-1 py-0.5 bg-sky-50 text-sky-500 rounded-sm">FUEL</span>
+                    <span class="font-mono text-sm font-bold text-slate-800 truncate">${r.station||'\uc8fc\uc720\uc18c'}</span>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="font-orbitron text-[9px] text-slate-400 block mb-1">교체주기 KM (0=미사용)</label>
-                        <input type="number" id="new-item-km" placeholder="10000"
-                            class="w-full bg-white border border-slate-200 rounded-sm p-2.5 font-mono text-sm focus:border-sky-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="font-orbitron text-[9px] text-slate-400 block mb-1">교체주기 개월 (0=미사용)</label>
-                        <input type="number" id="new-item-month" placeholder="12"
-                            class="w-full bg-white border border-slate-200 rounded-sm p-2.5 font-mono text-sm focus:border-sky-500 outline-none">
-                    </div>
-                </div>
-                <button onclick="addNewItem()"
-                    class="w-full bg-sky-500 hover:bg-sky-600 text-white font-orbitron text-[10px] tracking-widest py-3 rounded-sm transition-colors">
-                    REGISTER ITEM
-                </button>
+                <div class="font-mono text-[10px] text-slate-400 mt-0.5">${r.date} \u00b7 ${parseFloat(r.odo||0).toLocaleString()}km \u00b7 ${parseFloat(r.volume||0).toFixed(2)}L \u00b7 \u20a9${parseFloat(r.cost||0).toLocaleString()}</div>
             </div>
-        </div>`;
-
-    if(!maintenanceItems.length){
-        c.innerHTML=addForm+'<div class="text-center text-slate-400 font-mono text-sm py-8">데이터 없음</div>';
-        return;
-    }
-    const items=[...maintenanceItems].sort((a,b)=>(a.order||99)-(b.order||99));
-    c.innerHTML=addForm+items.map(item=>`
-        <div class="border border-slate-200 rounded-sm mb-3">
-            <div id="view-item-${item.id}" class="flex justify-between items-start p-3">
-                <div class="min-w-0 flex-1">
-                    <div class="font-mono text-sm font-bold text-slate-800 truncate">${item.name}</div>
-                    <div class="flex gap-2 mt-1 flex-wrap items-center">
-                        <span class="font-orbitron text-[8px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-sm">${item.tag}</span>
-                        ${item.interval_km>0?`<span class="font-mono text-[10px] text-slate-400">${item.interval_km.toLocaleString()}km</span>`:''}
-                        ${item.interval_month>0?`<span class="font-mono text-[10px] text-slate-400">${item.interval_month}개월</span>`:''}
-                        <span class="font-mono text-[10px] text-slate-300">#${item.order||99}</span>
-                    </div>
-                </div>
-                <div class="flex gap-1.5 shrink-0 ml-2">
-                    <button onclick="toggleItemEdit('${item.id}')"
-                        class="font-orbitron text-[9px] px-2 py-1 border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 rounded-sm transition-colors">EDIT</button>
-                    <button onclick="deleteItem('${item.id}')"
-                        class="font-orbitron text-[9px] px-2 py-1 border border-red-200 text-red-400 hover:bg-red-50 rounded-sm transition-colors">DEL</button>
-                </div>
+            <div class="flex gap-1.5 shrink-0 ml-2">
+                <button onclick="toggleRefuelEdit('${r.id}')" class="font-orbitron text-[9px] px-2 py-1 border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 rounded-sm transition-colors">EDIT</button>
+                <button onclick="deleteRefuel('${r.id}')" class="font-orbitron text-[9px] px-2 py-1 border border-red-200 text-red-400 hover:bg-red-50 rounded-sm transition-colors">DEL</button>
             </div>
-            <div id="edit-item-${item.id}" class="hidden px-3 pb-3 border-t border-slate-100 space-y-2">
-                <div class="pt-3">
-                    <input type="text" id="ei-name-${item.id}" value="${item.name.replace(/"/g,'&quot;')}"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none">
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    ${tagSelectHTML(item.tag,`ei-tag-${item.id}`)}
-                    <input type="number" id="ei-order-${item.id}" value="${item.order||''}" placeholder="정렬순서"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none">
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">KM 주기</label>
-                        <input type="number" id="ei-km-${item.id}" value="${item.interval_km}"
-                            class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">개월 주기</label>
-                        <input type="number" id="ei-month-${item.id}" value="${item.interval_month}"
-                            class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none">
-                    </div>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="saveItemEdit('${item.id}')"
-                        class="flex-1 bg-sky-500 text-white font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-sky-600 transition-colors">SAVE</button>
-                    <button onclick="toggleItemEdit('${item.id}')"
-                        class="flex-1 bg-slate-100 text-slate-600 font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-slate-200 transition-colors">CANCEL</button>
-                </div>
+        </div>
+        <div id="edit-rfuel-${r.id}" class="hidden px-3 pb-3 border-t border-slate-100 space-y-2">
+            <div class="grid grid-cols-2 gap-2 pt-3">
+                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">DATE</label>
+                    <input type="date" id="er-date-${r.id}" value="${r.date}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-xs focus:border-sky-500 outline-none"></div>
+                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">ODO (KM)</label>
+                    <input type="number" id="er-odo-${r.id}" value="${r.odo}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-xs focus:border-sky-500 outline-none"></div>
             </div>
-        </div>`).join('');
-}
-function toggleItemEdit(id){
-    document.getElementById(`view-item-${id}`)?.classList.toggle('hidden');
-    document.getElementById(`edit-item-${id}`)?.classList.toggle('hidden');
-}
-function addNewItem(){
-    const name=(document.getElementById('new-item-name')?.value||'').trim();
-    if(!name){alert('항목명을 입력하세요');return;}
-    maintenanceItems.push({
-        id:Date.now().toString(), name,
-        tag:   document.getElementById('new-item-tag')?.value||'ETC',
-        interval_km:   parseFloat(document.getElementById('new-item-km')?.value)||0,
-        interval_month:parseFloat(document.getElementById('new-item-month')?.value)||0,
-        order: parseFloat(document.getElementById('new-item-order')?.value)||99
-    });
-    syncManage('maintenance_items',maintenanceItems);
-}
-function saveItemEdit(id){
-    const name=(document.getElementById(`ei-name-${id}`)?.value||'').trim();
-    if(!name){alert('항목명을 입력하세요');return;}
-    const idx=maintenanceItems.findIndex(i=>i.id===id); if(idx===-1)return;
-    maintenanceItems[idx]={
-        ...maintenanceItems[idx], name,
-        tag:           document.getElementById(`ei-tag-${id}`)?.value||maintenanceItems[idx].tag,
-        interval_km:   parseFloat(document.getElementById(`ei-km-${id}`)?.value)||0,
-        interval_month:parseFloat(document.getElementById(`ei-month-${id}`)?.value)||0,
-        order:         parseFloat(document.getElementById(`ei-order-${id}`)?.value)||99
-    };
-    syncManage('maintenance_items',maintenanceItems);
-}
-function deleteItem(id){
-    if(!confirm('이 항목을 삭제할까요?\n연관된 정비기록의 진단은 표시되지 않습니다.'))return;
-    maintenanceItems=maintenanceItems.filter(i=>i.id!==id);
-    syncManage('maintenance_items',maintenanceItems);
-}
-
-/* --- SERVICE TAB --- */
-function renderManageService(c){
-    if(!serviceLogs.length){
-        c.innerHTML='<div class="text-center text-slate-400 font-mono text-sm py-8">데이터 없음</div>';return;
-    }
-    const sorted=[...serviceLogs].sort((a,b)=>new Date(b.date)-new Date(a.date));
-    c.innerHTML=sorted.map(r=>`
-        <div class="border border-slate-200 rounded-sm mb-3">
-            <div id="view-svc-${r.id}" class="flex justify-between items-start p-3">
-                <div class="min-w-0 flex-1">
-                    <div class="font-mono text-sm font-bold text-slate-800 truncate">${r.name||'-'}</div>
-                    <div class="font-mono text-[10px] text-slate-400 mt-0.5">
-                        ${r.date} · ${parseFloat(r.odo||0).toLocaleString()}km · ₩${parseFloat(r.cost||0).toLocaleString()}
-                        ${r.memo?'· '+r.memo:''}
-                    </div>
-                </div>
-                <div class="flex gap-1.5 shrink-0 ml-2">
-                    <button onclick="toggleSvcEdit('${r.id}')"
-                        class="font-orbitron text-[9px] px-2 py-1 border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 rounded-sm transition-colors">EDIT</button>
-                    <button onclick="deleteSvc('${r.id}')"
-                        class="font-orbitron text-[9px] px-2 py-1 border border-red-200 text-red-400 hover:bg-red-50 rounded-sm transition-colors">DEL</button>
-                </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">STATION</label>
+                    <input type="text" id="er-station-${r.id}" value="${r.station||'\uc8fc\uc720\uc18c'}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
+                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">PRICE (\uc6d0/L)</label>
+                    <input type="number" id="er-price-${r.id}" value="${r.price||''}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
             </div>
-            <div id="edit-svc-${r.id}" class="hidden px-3 pb-3 border-t border-slate-100 space-y-2">
-                <div class="grid grid-cols-2 gap-2 pt-3">
-                    <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">DATE</label>
-                        <input type="date" id="es-date-${r.id}" value="${r.date}"
-                            class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-xs focus:border-sky-500 outline-none"></div>
-                    <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">ODO (KM)</label>
-                        <input type="number" id="es-odo-${r.id}" value="${r.odo}"
-                            class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-xs focus:border-sky-500 outline-none"></div>
-                </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">VOLUME (L)</label>
+                    <input type="number" id="er-volume-${r.id}" value="${r.volume||''}" step="0.01" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
                 <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">COST (KRW)</label>
-                    <input type="number" id="es-cost-${r.id}" value="${r.cost}"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
-                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">MEMO</label>
-                    <input type="text" id="es-memo-${r.id}" value="${r.memo||''}"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
-                <div class="flex gap-2">
-                    <button onclick="saveSvcEdit('${r.id}')"
-                        class="flex-1 bg-sky-500 text-white font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-sky-600 transition-colors">SAVE</button>
-                    <button onclick="toggleSvcEdit('${r.id}')"
-                        class="flex-1 bg-slate-100 text-slate-600 font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-slate-200 transition-colors">CANCEL</button>
-                </div>
+                    <input type="number" id="er-cost-${r.id}" value="${r.cost||''}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
             </div>
-        </div>`).join('');
+            <div class="flex gap-2">
+                <button onclick="saveRefuelEdit('${r.id}')" class="flex-1 bg-sky-500 text-white font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-sky-600 transition-colors">SAVE</button>
+                <button onclick="toggleRefuelEdit('${r.id}')" class="flex-1 bg-slate-100 text-slate-600 font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-slate-200 transition-colors">CANCEL</button>
+            </div>
+        </div>
+    </div>`;
 }
+
+function renderManageAll(c){
+    const all = [
+        ...serviceLogs.map(r=>({...r,_type:'service'})),
+        ...refuelLogs.map(r =>({...r,_type:'refuel'}))
+    ].sort((a,b)=>new Date(b.date)-new Date(a.date));
+    if(!all.length){c.innerHTML='<div class="text-center text-slate-400 font-mono text-sm py-8">\ub370\uc774\ud130 \uc5c6\uc74c</div>';return;}
+    c.innerHTML = all.map(r=>r._type==='service'?buildSvcRow(r):buildRefuelRow(r)).join('');
+}
+function renderManageServiceFull(c){
+    if(!serviceLogs.length){c.innerHTML='<div class="text-center text-slate-400 font-mono text-sm py-8">\ub370\uc774\ud130 \uc5c6\uc74c</div>';return;}
+    c.innerHTML=[...serviceLogs].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(r=>buildSvcRow(r)).join('');
+}
+function renderManageRefuelFull(c){
+    if(!refuelLogs.length){c.innerHTML='<div class="text-center text-slate-400 font-mono text-sm py-8">\ub370\uc774\ud130 \uc5c6\uc74c</div>';return;}
+    c.innerHTML=[...refuelLogs].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(r=>buildRefuelRow(r)).join('');
+}
+
+/* --- Edit/Delete handlers --- */
 function toggleSvcEdit(id){
     document.getElementById(`view-svc-${id}`)?.classList.toggle('hidden');
     document.getElementById(`edit-svc-${id}`)?.classList.toggle('hidden');
@@ -928,74 +996,17 @@ function toggleSvcEdit(id){
 function saveSvcEdit(id){
     const idx=serviceLogs.findIndex(s=>s.id===id); if(idx===-1)return;
     serviceLogs[idx]={...serviceLogs[idx],
-        date:document.getElementById(`es-date-${id}`)?.value||serviceLogs[idx].date,
-        odo: document.getElementById(`es-odo-${id}`)?.value ||serviceLogs[idx].odo,
-        cost:document.getElementById(`es-cost-${id}`)?.value||serviceLogs[idx].cost,
-        memo:document.getElementById(`es-memo-${id}`)?.value||''
+        date:document.getElementById(`es-date-${id}`)?.value ||serviceLogs[idx].date,
+        odo: document.getElementById(`es-odo-${id}`)?.value  ||serviceLogs[idx].odo,
+        cost:document.getElementById(`es-cost-${id}`)?.value ||serviceLogs[idx].cost,
+        memo:document.getElementById(`es-memo-${id}`)?.value ||''
     };
     syncManage('maintenance_history',serviceLogs);
 }
 function deleteSvc(id){
-    if(!confirm('이 정비기록을 삭제할까요?'))return;
+    if(!confirm('\uc774 \uc815\ube44\uae30\ub85d\uc744 \uc0ad\uc81c\ud560\uae4c\uc694?'))return;
     serviceLogs=serviceLogs.filter(s=>s.id!==id);
     syncManage('maintenance_history',serviceLogs);
-}
-
-/* --- REFUEL TAB --- */
-function renderManageRefuel(c){
-    if(!refuelLogs.length){
-        c.innerHTML='<div class="text-center text-slate-400 font-mono text-sm py-8">데이터 없음</div>';return;
-    }
-    const sorted=[...refuelLogs].sort((a,b)=>new Date(b.date)-new Date(a.date));
-    c.innerHTML=sorted.map(r=>`
-        <div class="border border-slate-200 rounded-sm mb-3">
-            <div id="view-rfuel-${r.id}" class="flex justify-between items-start p-3">
-                <div class="min-w-0 flex-1">
-                    <div class="font-mono text-sm font-bold text-slate-800 truncate">${r.station||'주유소'}</div>
-                    <div class="font-mono text-[10px] text-slate-400 mt-0.5">
-                        ${r.date} · ${parseFloat(r.odo||0).toLocaleString()}km · ${parseFloat(r.volume||0).toFixed(2)}L · ₩${parseFloat(r.cost||0).toLocaleString()}
-                    </div>
-                </div>
-                <div class="flex gap-1.5 shrink-0 ml-2">
-                    <button onclick="toggleRefuelEdit('${r.id}')"
-                        class="font-orbitron text-[9px] px-2 py-1 border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 rounded-sm transition-colors">EDIT</button>
-                    <button onclick="deleteRefuel('${r.id}')"
-                        class="font-orbitron text-[9px] px-2 py-1 border border-red-200 text-red-400 hover:bg-red-50 rounded-sm transition-colors">DEL</button>
-                </div>
-            </div>
-            <div id="edit-rfuel-${r.id}" class="hidden px-3 pb-3 border-t border-slate-100 space-y-2">
-                <div class="grid grid-cols-2 gap-2 pt-3">
-                    <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">DATE</label>
-                        <input type="date" id="er-date-${r.id}" value="${r.date}"
-                            class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-xs focus:border-sky-500 outline-none"></div>
-                    <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">ODO (KM)</label>
-                        <input type="number" id="er-odo-${r.id}" value="${r.odo}"
-                            class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-xs focus:border-sky-500 outline-none"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">STATION</label>
-                        <input type="text" id="er-station-${r.id}" value="${r.station||'주유소'}"
-                            class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
-                    <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">PRICE (원/L)</label>
-                        <input type="number" id="er-price-${r.id}" value="${r.price||''}"
-                            class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">VOLUME (L)</label>
-                        <input type="number" id="er-volume-${r.id}" value="${r.volume||''}" step="0.01"
-                            class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
-                    <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">COST (KRW)</label>
-                        <input type="number" id="er-cost-${r.id}" value="${r.cost||''}"
-                            class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="saveRefuelEdit('${r.id}')"
-                        class="flex-1 bg-sky-500 text-white font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-sky-600 transition-colors">SAVE</button>
-                    <button onclick="toggleRefuelEdit('${r.id}')"
-                        class="flex-1 bg-slate-100 text-slate-600 font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-slate-200 transition-colors">CANCEL</button>
-                </div>
-            </div>
-        </div>`).join('');
 }
 function toggleRefuelEdit(id){
     document.getElementById(`view-rfuel-${id}`)?.classList.toggle('hidden');
@@ -1014,15 +1025,15 @@ function saveRefuelEdit(id){
     syncManage('refuel_tx',refuelLogs);
 }
 function deleteRefuel(id){
-    if(!confirm('이 주유기록을 삭제할까요?'))return;
+    if(!confirm('\uc774 \uc8fc\uc720\uae30\ub85d\uc744 \uc0ad\uc81c\ud560\uae4c\uc694?'))return;
     refuelLogs=refuelLogs.filter(r=>r.id!==id);
     syncManage('refuel_tx',refuelLogs);
 }
 
 /* MANAGE_ALL event listeners */
-document.getElementById('btn-close-manage').addEventListener('click',closeManageAll);
-manageBackdrop.addEventListener('click',closeManageAll);
-document.getElementById('btn-open-manage-diag').addEventListener('click',openManageAll);
+document.getElementById('btn-close-manage').addEventListener('click', closeManageAll);
+manageBackdrop.addEventListener('click', closeManageAll);
+document.getElementById('btn-open-manage-diag').addEventListener('click', openManageAll);
 </script>
 </body>
 </html>
