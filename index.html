@@ -1,1039 +1,732 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StackCar Command Center</title>
-    <script>
-    tailwind.config = {
-        theme: {
-            extend: {
-                fontFamily: {
-                    'orbitron': ['Orbitron', 'sans-serif'],
-                    'mono': ['"Share Tech Mono"', 'monospace'],
-                }
-            }
-        }
-    }
-    </script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Noto+Sans+KR:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script src="config.js"></script>
-    <style>
-        body { font-family:'Noto Sans KR',sans-serif; background-color:#f8fafc;
-            background-image:linear-gradient(rgba(148,163,184,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.1) 1px,transparent 1px);
-            background-size:20px 20px; color:#1e293b; overscroll-behavior-y:none; }
-        .crosshair-box { position:relative; background:rgba(255,255,255,.7); backdrop-filter:blur(8px);
-            border:1px solid rgba(226,232,240,.8); border-radius:4px; box-shadow:0 4px 20px -2px rgba(0,0,0,.02); }
-        .crosshair-box::before,.crosshair-box::after { content:''; position:absolute; width:10px; height:10px; pointer-events:none; }
-        .crosshair-box::before { top:-1px;left:-1px; border-top:1.5px solid #0ea5e9; border-left:1.5px solid #0ea5e9; }
-        .crosshair-box::after  { bottom:-1px;right:-1px; border-bottom:1.5px solid #0ea5e9; border-right:1.5px solid #0ea5e9; }
-        .no-scrollbar::-webkit-scrollbar { display:none; }
-        .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
-        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        .fa-spin { animation:spin 1s linear infinite; }
-        .odo-autofill { background-color:#f0f9ff !important; border-color:#bae6fd !important; }
-        details summary::-webkit-details-marker { display:none; }
-        details[open] .details-chevron { transform:rotate(180deg); }
-        .details-chevron { transition:transform .2s; }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>StackCar Command Center</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<style>
+  :root{
+    --stone:#EFF1F4; --ink:#2A2E35; --muted:#6B7178; --faint:#A2A8B0;
+    --cyan:#159BC0; --cyan-glow:rgba(45,184,222,.45);
+    --amber:#2EB6CE; --blue-glow:rgba(82,205,226,.34);
+    --line:rgba(40,50,65,.1);
+    --panel:rgba(255,255,255,.78); --panel2:rgba(255,255,255,.9);
+    --blur:saturate(140%) blur(14px);
+    --sh:0 1px 2px rgba(30,40,55,.08),0 10px 28px rgba(30,40,55,.14);
+    --shL:0 26px 64px rgba(30,40,55,.22);
+    --spring:cubic-bezier(.34,1.4,.5,1); --ease:cubic-bezier(.32,.72,0,1);
+    --good:#3E9A5E; --warn:#D2952E; --bad:#CC4B40;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;min-height:100dvh;color:var(--ink);
+    font-family:'Pretendard',-apple-system,sans-serif;-webkit-font-smoothing:antialiased;background:var(--stone);overscroll-behavior-y:none;}
+  .num{font-variant-numeric:tabular-nums;}
+  /* ── 배경 레이어 ── */
+  .bg{position:fixed;inset:0;z-index:-3;background:radial-gradient(85% 42% at 50% -8%,rgba(60,180,215,.18) 0%,rgba(60,180,215,0) 62%),linear-gradient(180deg,#F6F7F9 0%,#EAEDF1 60%,#E2E6EB 100%);}
+  .grid-lines{position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'200'%20height%3D'200'%20viewBox%3D'0%200%20200%20200'%3E%3Cg%20fill%3D'none'%20stroke%3D'%232E7E96'%20stroke-width%3D'1.5'%20opacity%3D'0.55'%3E%3Cpath%20d%3D'M24%200%20V44%20H64%20V84%20H22'%2F%3E%3Cpath%20d%3D'M104%200%20V34%20H148%20V74'%2F%3E%3Cpath%20d%3D'M0%20116%20H54%20V156%20H96'%2F%3E%3Cpath%20d%3D'M200%2064%20H156%20V104%20H120%20V148'%2F%3E%3Cpath%20d%3D'M156%20200%20V160%20H196'%2F%3E%3Cpath%20d%3D'M72%20200%20V172%20H32'%2F%3E%3Cpath%20d%3D'M120%20148%20H168'%2F%3E%3C%2Fg%3E%3Cg%20fill%3D'%232E7E96'%20opacity%3D'0.8'%3E%3Ccircle%20cx%3D'64'%20cy%3D'84'%20r%3D'3'%2F%3E%3Ccircle%20cx%3D'148'%20cy%3D'74'%20r%3D'3'%2F%3E%3Ccircle%20cx%3D'96'%20cy%3D'156'%20r%3D'3'%2F%3E%3Ccircle%20cx%3D'120'%20cy%3D'148'%20r%3D'3'%2F%3E%3Ccircle%20cx%3D'24'%20cy%3D'44'%20r%3D'2.6'%2F%3E%3Ccircle%20cx%3D'104'%20cy%3D'34'%20r%3D'2.6'%2F%3E%3C%2Fg%3E%3Cg%20fill%3D'none'%20stroke%3D'%232E7E96'%20stroke-width%3D'1.5'%20opacity%3D'0.5'%3E%3Crect%20x%3D'94'%20y%3D'94'%20width%3D'12'%20height%3D'12'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") repeat;background-size:240px 240px;opacity:.04;
+    -webkit-mask:radial-gradient(125% 100% at 50% 34%,#000 36%,transparent 92%);
+            mask:radial-gradient(125% 100% at 50% 34%,#000 36%,transparent 92%);}
+  .motes{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;}
+  .motes i{position:absolute;bottom:-6vh;border-radius:50%;background:radial-gradient(closest-side,rgba(150,225,243,.96),rgba(120,210,235,0));box-shadow:0 0 9px 2px rgba(82,205,226,.6);animation:rise linear infinite;}
+  @keyframes rise{0%{transform:translate(0,0) scale(.7);opacity:0}10%{opacity:.95}25%{transform:translate(16px,-24vh) scale(1)}50%{transform:translate(-12px,-52vh) scale(.82);opacity:.85}75%{transform:translate(13px,-80vh) scale(1.08)}90%{opacity:.55}100%{transform:translate(-7px,-115vh) scale(.7);opacity:0}}
+  .runering{position:fixed;left:50%;top:38%;width:min(82vmin,560px);aspect-ratio:1;z-index:-2;pointer-events:none;opacity:.16;background:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20400%20400'%3E%3Cg%20fill%3D'none'%20stroke%3D'%23B4BAC3'%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'168'%20stroke-width%3D'2'%20opacity%3D'0.5'%2F%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'150'%20stroke-width%3D'10'%20stroke-dasharray%3D'3%2016'%20opacity%3D'0.45'%2F%3E%3Ccircle%20cx%3D'200'%20cy%3D'200'%20r%3D'120'%20stroke-width%3D'1.5'%20opacity%3D'0.4'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") center/contain no-repeat;transform:translate(-50%,-50%);}
+  .runering2{position:fixed;left:50%;top:38%;width:min(54vmin,360px);aspect-ratio:1;z-index:-2;pointer-events:none;opacity:.18;background:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20300%20300'%3E%3Cg%20fill%3D'none'%20stroke%3D'%232EB6CE'%3E%3Ccircle%20cx%3D'150'%20cy%3D'150'%20r%3D'130'%20stroke-width%3D'2'%20stroke-dasharray%3D'2%2012'%20opacity%3D'0.75'%2F%3E%3Ccircle%20cx%3D'150'%20cy%3D'150'%20r%3D'112'%20stroke-width%3D'1'%20opacity%3D'0.4'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") center/contain no-repeat;transform:translate(-50%,-50%);}
+  .frame{position:fixed;inset:8px;border:1px solid var(--line);border-radius:13px;pointer-events:none;z-index:15;box-shadow:inset 0 0 60px rgba(40,50,65,.04);}
+  .cnr{position:fixed;width:22px;height:22px;z-index:16;pointer-events:none;border:1.5px solid rgba(45,184,222,.5);}
+  .cnr.tl{top:6px;left:6px;border-right:none;border-bottom:none;border-radius:9px 0 0 0;}
+  .cnr.tr{top:6px;right:6px;border-left:none;border-bottom:none;border-radius:0 9px 0 0;}
+  .cnr.bl{bottom:6px;left:6px;border-right:none;border-top:none;border-radius:0 0 0 9px;}
+  .cnr.br{bottom:6px;right:6px;border-left:none;border-top:none;border-radius:0 0 9px 0;}
+  .m{font-family:'Material Symbols Rounded';font-weight:normal;line-height:1;}
+  /* ── 헤더 ── */
+  header{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;max-width:760px;margin:0 auto;}
+  .brand{display:flex;flex-direction:column;gap:2px;}
+  .wordmark{font-family:'Cinzel',serif;font-weight:700;font-size:20px;letter-spacing:.16em;color:#2A2E35;}
+  .wordmark .dot{color:var(--cyan);}
+  .subid{font-size:10px;letter-spacing:.12em;color:var(--faint);font-weight:600;}
+  .hbtns{display:flex;gap:9px;}
+  .iconbtn{width:42px;height:42px;border:1px solid var(--line);border-radius:11px;background:var(--panel);
+    backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);box-shadow:var(--sh);color:#4A5159;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .16s var(--spring),box-shadow .2s,border-color .2s;}
+  .iconbtn:active{transform:scale(.9);} .iconbtn:hover{box-shadow:0 0 7px var(--blue-glow),var(--sh);border-color:var(--amber);} .iconbtn .m{font-size:22px;}
+  /* ── 본문 ── */
+  main{min-height:100%;padding:78px 16px 130px;}
+  .wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:13px;}
+  .panel{background:var(--panel2);border:1px solid var(--line);border-radius:15px;box-shadow:var(--sh);
+    backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);padding:15px;}
+  .panel.click{cursor:pointer;transition:transform .18s var(--spring),box-shadow .25s,border-color .2s;}
+  .panel.click:hover{box-shadow:0 0 0 1px var(--amber),0 0 12px var(--blue-glow),var(--sh);}
+  .panel.click:active{transform:scale(.985);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+  .cap{font-size:10px;font-weight:700;letter-spacing:.16em;color:var(--faint);text-transform:uppercase;display:flex;align-items:center;gap:5px;}
+  .cap .m{font-size:14px;color:var(--cyan);}
+  .big{font-size:30px;font-weight:800;color:var(--ink);line-height:1.05;}
+  .big .unit{font-size:13px;font-weight:700;color:var(--faint);margin-left:3px;}
+  .mid{font-size:17px;font-weight:800;color:var(--ink);}
+  .sub{font-size:11px;color:var(--muted);font-weight:600;margin-top:3px;}
+  .divx{height:1px;background:var(--line);margin:10px 0;}
+  .vline{border-left:1px solid var(--line);padding-left:14px;}
+  .chip{font-size:9px;font-weight:800;letter-spacing:.06em;padding:2px 6px;border-radius:6px;background:rgba(40,100,120,.09);color:#2E7FA0;}
+  /* SERVICE DUE rows */
+  .sdrow{padding:10px 6px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:9px;transition:background .15s;}
+  .sdrow:last-child{border-bottom:none;}
+  .sdrow:hover{background:rgba(45,184,222,.07);}
+  .sdrow:active{transform:scale(.99);}
+  .sdtop{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:7px;}
+  .sdname{font-size:13.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sdremain{font-size:11px;font-weight:800;text-align:right;white-space:nowrap;}
+  .sddue{font-size:10px;color:var(--faint);font-weight:600;margin-top:2px;}
+  .bar{flex:1;height:6px;background:rgba(40,50,65,.08);border-radius:999px;overflow:hidden;}
+  .bar>div{height:100%;border-radius:999px;transition:width .4s var(--ease);}
+  .pct{font-size:10px;font-weight:800;width:38px;text-align:right;}
+  /* ── FAB ── */
+  .fabwrap{position:fixed;bottom:24px;right:18px;z-index:20;}
+  .fab{width:60px;height:60px;border:none;color:#fff;background:var(--cyan);cursor:pointer;
+    clip-path:polygon(26% 0,74% 0,100% 26%,100% 74%,74% 100%,26% 100%,0 74%,0 26%);
+    display:flex;align-items:center;justify-content:center;box-shadow:0 0 11px var(--cyan-glow),var(--sh);transition:transform .22s var(--spring);}
+  .fab .m{font-size:32px;transition:transform .25s var(--spring);} .fab:active{transform:scale(.92);}
+  .dial{position:absolute;bottom:74px;right:4px;display:flex;flex-direction:column;gap:12px;align-items:center;opacity:0;visibility:hidden;transform:translateY(14px) scale(.96);transition:.24s var(--spring);}
+  .dial.on{opacity:1;visibility:visible;transform:none;}
+  .dialbtn{display:flex;align-items:center;gap:9px;cursor:pointer;border:none;background:transparent;}
+  .dialbtn .ic{width:52px;height:52px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--panel2);
+    backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);color:var(--cyan);box-shadow:0 0 7px var(--cyan-glow),var(--sh);transition:transform .16s var(--spring);
+    clip-path:polygon(26% 0,74% 0,100% 26%,100% 74%,74% 100%,26% 100%,0 74%,0 26%);}
+  .dialbtn:active .ic{transform:scale(.9);} .dialbtn .ic .m{font-size:24px;}
+  .dialbtn .tag{font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:.14em;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;box-shadow:var(--sh);}
+  /* ── 오버레이 / 레이어팝업 ── */
+  .overlay{position:fixed;inset:0;z-index:50;background:rgba(20,24,30,.45);backdrop-filter:blur(3px);display:flex;opacity:0;visibility:hidden;transition:.25s var(--ease);align-items:center;justify-content:center;padding:16px;}
+  .overlay.on{opacity:1;visibility:visible;}
+  .modal{width:100%;max-width:540px;max-height:88dvh;display:flex;flex-direction:column;border-radius:18px;overflow:hidden;
+    background:var(--panel2);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--line);
+    box-shadow:var(--shL);transform:translateY(16px) scale(.97);opacity:0;transition:.28s var(--ease);}
+  .overlay.on .modal{transform:none;opacity:1;}
+  .mhead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 15px;border-bottom:1px solid var(--line);}
+  .mhead h2{margin:0;font-size:17px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:8px;}
+  .mhead h2 .m{font-size:20px;color:var(--cyan);}
+  .mbody{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:13px;}
+  .fld{display:flex;flex-direction:column;gap:6px;}
+  .fld label{font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;}
+  .fld label.key{color:var(--cyan);}
+  .ipt{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px 13px;font-size:15px;background:rgba(255,255,255,.6);color:var(--ink);font-family:inherit;outline:none;transition:border-color .2s,box-shadow .2s;}
+  .ipt:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(45,184,222,.14);}
+  .grid2f{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+  .btn{border:none;border-radius:11px;padding:14px 16px;font-family:'Cinzel',serif;font-size:14px;font-weight:700;letter-spacing:.1em;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .16s var(--spring);width:100%;}
+  .btn:active{transform:scale(.97);} .btn-dark{background:var(--cyan);color:#fff;box-shadow:0 0 14px var(--cyan-glow);} .btn-ink{background:#2A2E35;color:#fff;} .btn-ghost{background:rgba(45,184,222,.13);color:var(--cyan);}
+  .calc{background:rgba(45,184,222,.09);border:1px solid rgba(45,184,222,.18);border-radius:11px;padding:13px;display:flex;justify-content:space-between;align-items:center;}
+  .toggle{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:11px;padding:12px 13px;cursor:pointer;background:rgba(255,255,255,.45);}
+  .switch{position:relative;width:42px;height:24px;border-radius:999px;background:rgba(40,50,65,.18);transition:.2s;flex-shrink:0;}
+  .switch:after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:.2s var(--spring);}
+  input:checked + .switch{background:var(--cyan);} input:checked + .switch:after{transform:translateX(18px);}
+  /* item selector grid */
+  .igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:11px;}
+  .icard{text-align:left;border:1px solid var(--line);background:rgba(255,255,255,.55);border-radius:12px;padding:11px;cursor:pointer;display:flex;flex-direction:column;gap:8px;transition:transform .16s var(--spring),box-shadow .2s,border-color .2s;}
+  .icard:hover{box-shadow:0 0 0 1px var(--amber),0 0 10px var(--blue-glow);} .icard:active{transform:scale(.95);}
+  .icard .code{font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--faint);}
+  .icard .iname{font-size:14px;font-weight:700;color:var(--ink);line-height:1.25;}
+  /* pills (filters / presets) */
+  .pills{display:flex;gap:6px;flex-wrap:wrap;}
+  .pill{border:1px solid var(--line);background:rgba(255,255,255,.5);border-radius:999px;height:34px;padding:0 15px;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;transition:.2s var(--spring);}
+  .pill.on{background:var(--cyan);color:#fff;border-color:transparent;box-shadow:0 0 7px var(--cyan-glow);}
+  .pill:active{transform:scale(.95);}
+  /* list cards */
+  .scard{background:rgba(255,255,255,.55);border:1px solid var(--line);border-radius:11px;padding:12px;box-shadow:var(--sh);}
+  .srow{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+  .sname{font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .smeta{font-size:11.5px;color:var(--muted);margin-top:3px;}
+  .minibtn{border:none;background:rgba(45,184,222,.15);color:var(--cyan);border-radius:8px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;transition:transform .16s var(--spring);}
+  .minibtn:active{transform:scale(.92);} .minibtn.danger{background:rgba(238,123,114,.16);color:#EE7B72;}
+  .empty{text-align:center;color:var(--faint);padding:40px 0;font-size:14px;font-weight:600;}
+  .empty .m{font-size:40px;display:block;margin-bottom:8px;color:var(--cyan);opacity:.5;}
+  .statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;}
+  .stat{border:1px solid var(--line);border-radius:11px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;background:rgba(255,255,255,.5);}
+  .stat .l{font-size:9px;font-weight:800;letter-spacing:.1em;color:var(--faint);}
+  .stat .v{font-size:16px;font-weight:800;}
+  details summary{list-style:none;cursor:pointer;} details summary::-webkit-details-marker{display:none;}
+  details[open] .chev{transform:rotate(180deg);} .chev{transition:transform .2s;}
+  /* ── 로딩 (3D 오브) ── */
+  #load{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;background:transparent;transition:opacity .4s var(--ease);}
+  #load.hide{opacity:0;pointer-events:none;}
+  #loadtxt{position:absolute;left:0;right:0;bottom:46px;text-align:center;font-size:13.5px;color:#6B7178;font-weight:600;letter-spacing:.14em;}
+  .skload{position:relative;width:160px;height:160px;display:grid;place-items:center;perspective:560px;color:#67BDD4;}
+  .skload .orb{position:absolute;inset:6px;transform-style:preserve-3d;animation:skTumble 7.5s linear infinite;}
+  .skload .ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid currentColor;box-sizing:border-box;opacity:.5;box-shadow:0 0 6px rgba(45,184,222,.16);}
+  .skload .r2{transform:rotateY(62deg);opacity:.4;}
+  .skload .r3{transform:rotateX(62deg);opacity:.4;}
+  .skload .r4{transform:rotateX(58deg) rotateY(58deg);opacity:.28;}
+  @keyframes skTumble{from{transform:rotateX(0) rotateY(0);}to{transform:rotateX(360deg) rotateY(360deg);}}
+  .spin{animation:sp 1s linear infinite;display:inline-block;} @keyframes sp{to{transform:rotate(360deg);}}
+  #toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);z-index:80;background:rgba(10,15,21,.94);backdrop-filter:blur(8px);border:1px solid var(--line);color:#EDE7D3;font-size:13.5px;font-weight:600;padding:12px 19px;border-radius:999px;opacity:0;transition:.3s var(--spring);pointer-events:none;white-space:nowrap;}
+  #toast.on{opacity:1;transform:translateX(-50%);}
+</style>
 </head>
-<body class="min-h-screen flex flex-col items-center">
+<body>
+  <div class="bg"></div><div class="grid-lines"></div>
+  <div class="motes" id="motes"></div>
+  <div class="runering"></div><div class="runering2"></div>
+  <div class="frame"></div><span class="cnr tl"></span><span class="cnr tr"></span><span class="cnr bl"></span><span class="cnr br"></span>
 
-<div class="max-w-3xl w-full p-4 sm:p-6 pb-24 relative z-10 flex flex-col gap-4">
+  <header>
+    <div class="brand">
+      <div class="wordmark">Stack<span class="dot">Car</span></div>
+      <div class="subid">ID: This_Cold // SYS.ONLINE</div>
+    </div>
+    <div class="hbtns">
+      <button class="iconbtn" id="syncBtn" onclick="reloadData()" title="새로고침"><span class="m">refresh</span></button>
+      <button class="iconbtn" onclick="location.href='settings.html'" title="설정"><span class="m">settings</span></button>
+    </div>
+  </header>
 
-    <header class="flex justify-between items-center mb-2">
+  <main><div class="wrap">
+
+    <!-- TIME + ENV -->
+    <div class="row2">
+      <div class="panel">
+        <div class="cap"><span class="m">schedule</span>SYS.TIME</div>
+        <div class="mid num" id="live-clock" style="margin-top:8px">--:--:--</div>
+        <div class="sub num" id="live-date">YYYY.MM.DD</div>
+      </div>
+      <div class="panel" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="min-width:0">
+          <div class="cap"><span class="m">thermostat</span>ENV.DATA</div>
+          <div class="mid num" id="weather-temp" style="margin-top:8px">Seoul, --°C</div>
+          <div class="sub" style="display:flex;align-items:center;gap:5px">
+            <span class="num" id="gas-price-display" style="color:var(--cyan)">Avg Gas: ₩--</span>
+            <span class="m" style="font-size:14px;color:var(--faint);cursor:pointer" onclick="toggleGasEdit()">edit</span>
+          </div>
+          <div id="gas-edit-area" style="display:none;margin-top:7px;align-items:center;gap:6px">
+            <input type="number" id="input-gas-price" class="ipt" style="width:90px;padding:7px 9px;font-size:13px" placeholder="1985" onkeydown="if(event.key==='Enter')saveGasPrice()">
+            <button class="minibtn" onclick="saveGasPrice()">OK</button>
+          </div>
+        </div>
+        <span class="m" id="weather-icon" style="font-size:30px;color:var(--cyan)">partly_cloudy_day</span>
+      </div>
+    </div>
+
+    <!-- TRAJECTORY + EFFICIENCY -->
+    <div class="panel">
+      <div style="display:grid;grid-template-columns:1fr 1fr">
         <div>
-            <h1 class="font-orbitron text-xl sm:text-2xl font-bold tracking-widest text-slate-800">STACK<span class="text-sky-500">CAR</span></h1>
-            <p class="font-mono text-[10px] text-slate-500">ID: This_Cold // SYS.ONLINE</p>
+          <div class="cap"><span class="m">route</span>TRAJECTORY</div>
+          <div class="big num" style="margin-top:8px"><span id="display-odo">--</span><span class="unit">KM</span></div>
         </div>
-        <button onclick="location.href='settings.html'" class="w-10 h-10 rounded-full border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-sky-500 cursor-pointer transition-colors shadow-sm outline-none">
-            <i class="fa-solid fa-gear"></i>
+        <div class="vline click panel" id="btn-efficiency" style="border-radius:11px;padding:11px 12px;background:rgba(45,184,222,.05);border:1px solid rgba(45,184,222,.16);box-shadow:none">
+          <div class="cap"><span class="m">monitoring</span>EFFICIENCY</div>
+          <div class="big num" style="margin-top:8px"><span id="display-efficiency">--</span><span class="unit">KM/L</span></div>
+          <div class="sub num" id="display-efficiency-last"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COST -->
+    <div class="row2">
+      <div class="panel click" id="btn-cost-refuel">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="cap" id="label-refuel-month">... REFUEL</div><span class="m" style="font-size:16px;color:var(--faint)">chevron_right</span>
+        </div>
+        <div class="mid num" style="margin-top:9px;color:var(--cyan)" id="display-refuel-cost">₩ --</div>
+      </div>
+      <div class="panel click" id="btn-cost-service">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="cap" id="label-service-month">... SERVICE</div><span class="m" style="font-size:16px;color:var(--faint)">chevron_right</span>
+        </div>
+        <div class="mid num" style="margin-top:9px" id="display-service-cost">₩ --</div>
+      </div>
+    </div>
+
+    <!-- SERVICE DUE -->
+    <div class="panel" id="diagnostics-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div class="cap" style="font-size:12px;color:var(--ink)"><span class="m">build_circle</span>SERVICE DUE <span style="color:var(--faint);font-weight:600;letter-spacing:0;text-transform:none;margin-left:2px">정비 도래순</span></div>
+        <button class="minibtn" id="btn-open-manage-diag">MANAGE_ALL</button>
+      </div>
+      <div id="service-due-list"><div class="empty"><span class="m">hourglass_top</span>LOADING…</div></div>
+    </div>
+
+  </div></main>
+
+  <!-- FAB -->
+  <div class="fabwrap">
+    <div class="dial" id="dial">
+      <button class="dialbtn" onclick="openRefuel()"><span class="tag">REFUEL</span><span class="ic"><span class="m">local_gas_station</span></span></button>
+      <button class="dialbtn" onclick="openService()"><span class="tag">SERVICE</span><span class="ic"><span class="m">build</span></span></button>
+    </div>
+    <button class="fab" id="fab" onclick="toggleDial()"><span class="m" id="fabicon">add</span></button>
+  </div>
+
+  <!-- REFUEL MODAL -->
+  <div class="overlay" id="m-refuel"><div class="modal">
+    <div class="mhead"><h2><span class="m">local_gas_station</span>ENERGY_RECHARGE</h2><button class="iconbtn" onclick="closeModal('m-refuel')"><span class="m">close</span></button></div>
+    <div class="mbody">
+      <details class="fld" id="refuel-date-details">
+        <summary style="display:flex;justify-content:space-between;align-items:center"><label>DATE <span class="num" id="refuel-date-preview" style="color:var(--ink);text-transform:none;font-weight:600;letter-spacing:0">--</span></label><span class="m chev" style="color:var(--faint)">expand_more</span></summary>
+        <input type="date" id="input-refuel-date" class="ipt" style="margin-top:8px" onchange="document.getElementById('refuel-date-preview').textContent=this.value">
+      </details>
+      <div class="fld"><label>STATION NAME (OPTIONAL)</label><input type="text" id="input-station" class="ipt" placeholder="주유소명 (미입력 시 '주유소')"></div>
+      <div class="fld"><label class="key">ODOMETER (KM)</label><input type="number" id="input-refuel-odo" class="ipt"></div>
+      <div class="grid2f">
+        <div class="fld"><label>PRICE (KRW/L)</label><input type="number" id="input-price" class="ipt" placeholder="1985"></div>
+        <div class="fld"><label>TOTAL COST (KRW)</label><input type="number" id="input-cost" class="ipt" placeholder="50000"></div>
+      </div>
+      <div class="calc"><span class="cap" style="color:var(--cyan)">CALCULATED VOLUME</span><div class="num"><span id="display-volume" style="font-size:20px;font-weight:800;color:var(--cyan)">0.00</span> <span style="font-size:11px;color:var(--cyan);font-weight:700">L</span></div></div>
+      <label class="toggle"><input type="checkbox" id="input-fulltank" checked hidden><span class="switch"></span><span style="font-weight:700;font-size:13px">FULL TANK OVERRIDE</span></label>
+      <button class="btn btn-dark" id="btn-submit-refuel"><span class="m">satellite_alt</span>SYNC_TO_DB</button>
+    </div>
+  </div></div>
+
+  <!-- SERVICE MODAL -->
+  <div class="overlay" id="m-service"><div class="modal">
+    <div class="mhead"><h2><span class="m">build</span>SYSTEM_MAINTENANCE</h2><button class="iconbtn" onclick="closeModal('m-service')"><span class="m">close</span></button></div>
+    <div class="mbody">
+      <div class="grid2f">
+        <div class="fld"><label class="key">ODOMETER (KM)</label><input type="number" id="input-service-odo" class="ipt"></div>
+        <div class="fld"><label>DATE</label><input type="date" id="input-service-date" class="ipt"></div>
+      </div>
+      <div class="fld"><label class="key">MAINTENANCE ITEM</label>
+        <button type="button" id="btn-open-item-selector" class="ipt" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;text-align:left">
+          <span style="display:flex;flex-direction:column;gap:2px">
+            <span id="selected-item-display" style="color:var(--faint)">선택 대기 중...</span>
+            <span id="selected-item-code" style="font-size:10px;color:var(--cyan);display:none"></span>
+          </span><span class="m" style="color:var(--faint)">list</span>
         </button>
-    </header>
-
-    <!-- Time + Weather -->
-    <div class="grid grid-cols-2 gap-3">
-        <div class="crosshair-box p-3 flex flex-col justify-center">
-            <span class="font-orbitron text-[10px] text-slate-400 tracking-widest mb-1">SYS.TIME</span>
-            <span id="live-clock" class="font-mono text-sm sm:text-base text-slate-800 font-bold">--:--:--</span>
-            <span id="live-date"  class="font-mono text-[10px] text-slate-500 mt-0.5">YYYY.MM.DD</span>
-        </div>
-        <div class="crosshair-box p-3 flex justify-between items-center">
-            <div class="flex flex-col">
-                <span class="font-orbitron text-[10px] text-slate-400 tracking-widest mb-1">ENV.DATA</span>
-                <span id="weather-temp" class="font-mono text-sm sm:text-base text-slate-800 font-bold">Seoul, --°C</span>
-                <div class="flex items-center gap-1 mt-0.5">
-                    <span id="gas-price-display" class="font-mono text-[10px] text-sky-500">Avg Gas: ₩--</span>
-                    <button onclick="toggleGasEdit()" class="text-slate-300 hover:text-sky-400 transition-colors ml-0.5 leading-none">
-                        <i class="fa-solid fa-pencil text-[8px]"></i>
-                    </button>
-                </div>
-                <div id="gas-edit-area" class="hidden">
-                    <div class="flex items-center gap-1 mt-1">
-                        <span class="font-mono text-[9px] text-slate-400">₩</span>
-                        <input type="number" id="input-gas-price"
-                            class="w-20 bg-white border border-sky-300 rounded-sm px-1.5 py-0.5 font-mono text-[10px] text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-400"
-                            placeholder="1985" onkeydown="if(event.key==='Enter')saveGasPrice()">
-                        <button onclick="saveGasPrice()" class="font-orbitron text-[8px] text-white bg-sky-500 px-1.5 py-0.5 rounded-sm">OK</button>
-                    </div>
-                </div>
-            </div>
-            <i id="weather-icon" class="fa-solid fa-cloud-sun text-2xl text-slate-300"></i>
-        </div>
+        <input type="hidden" id="input-service-item-code"><input type="hidden" id="input-service-item-name">
+      </div>
+      <div class="fld"><label>TOTAL COST (KRW)</label><input type="number" id="input-service-cost" class="ipt" placeholder="0"></div>
+      <div class="fld"><label>ENGINEER'S LOG (MEMO)</label><textarea id="input-service-memo" rows="2" class="ipt" style="resize:none" placeholder="특이사항 입력..."></textarea></div>
+      <button class="btn btn-ink" id="btn-submit-service"><span class="m">satellite_alt</span>SYNC_TO_DB</button>
     </div>
+  </div></div>
 
-    <!-- Trajectory + Efficiency -->
-    <div class="crosshair-box p-5">
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <span class="font-orbitron text-[10px] text-sky-500 tracking-widest block mb-1">TRAJECTORY</span>
-                <div class="flex items-end gap-1">
-                    <span id="display-odo" class="font-mono text-2xl sm:text-3xl font-bold text-slate-800">--</span>
-                    <span class="font-orbitron text-xs text-slate-400 mb-1">KM</span>
-                </div>
-            </div>
-            <div class="pl-4 border-l border-slate-200">
-                <span class="font-orbitron text-[10px] text-slate-400 tracking-widest block mb-1">EFFICIENCY</span>
-                <div class="flex items-end gap-1">
-                    <span id="display-efficiency" class="font-mono text-2xl sm:text-3xl font-bold text-slate-800">--</span>
-                    <span class="font-orbitron text-xs text-slate-400 mb-1">KM/L</span>
-                </div>
-                <span id="display-efficiency-last" class="font-mono text-[10px] text-slate-400 mt-0.5 block"></span>
-            </div>
-        </div>
+  <!-- ITEM SELECTOR -->
+  <div class="overlay" id="m-item" style="z-index:54"><div class="modal" style="max-width:600px;height:85dvh">
+    <div class="mhead"><h2><span class="m">database</span>ITEM_ARCHIVE</h2><button class="iconbtn" onclick="closeModal('m-item')"><span class="m">close</span></button></div>
+    <div style="padding:13px 15px;border-bottom:1px solid var(--line)">
+      <input type="text" id="input-item-search" class="ipt" placeholder="항목명, 태그 또는 코드 검색...">
     </div>
+    <div class="mbody"><div class="igrid" id="item-list-container"></div></div>
+  </div></div>
 
-    <!-- Cost Cards -->
-    <div class="grid grid-cols-2 gap-3">
-        <button id="btn-cost-refuel" class="bg-white border border-slate-200 p-4 rounded-sm shadow-sm flex flex-col items-start hover:border-sky-300 transition-colors group text-left">
-            <div class="w-full flex justify-between items-center mb-2">
-                <span id="label-refuel-month" class="font-orbitron text-[10px] text-slate-400 tracking-widest">... REFUEL</span>
-                <i class="fa-solid fa-caret-down text-slate-300 group-hover:text-sky-500"></i>
-            </div>
-            <span id="display-refuel-cost" class="font-mono text-lg font-bold text-slate-800">₩ --</span>
-        </button>
-        <button id="btn-cost-service" class="bg-white border border-slate-200 p-4 rounded-sm shadow-sm flex flex-col items-start hover:border-slate-400 transition-colors group text-left">
-            <div class="w-full flex justify-between items-center mb-2">
-                <span id="label-service-month" class="font-orbitron text-[10px] text-slate-400 tracking-widest">... SERVICE</span>
-                <i class="fa-solid fa-caret-down text-slate-300 group-hover:text-slate-600"></i>
-            </div>
-            <span id="display-service-cost" class="font-mono text-lg font-bold text-slate-800">₩ --</span>
-        </button>
+  <!-- COST DETAIL -->
+  <div class="overlay" id="m-cost"><div class="modal">
+    <div class="mhead"><h2 id="cost-detail-title"></h2><button class="iconbtn" onclick="closeModal('m-cost')"><span class="m">close</span></button></div>
+    <div class="mbody">
+      <div class="pills">
+        <button class="pill on" id="preset-month" onclick="setCostPreset('month')">이번달</button>
+        <button class="pill" id="preset-year" onclick="setCostPreset('year')">올해</button>
+        <button class="pill" id="preset-all" onclick="setCostPreset('all')">전체</button>
+      </div>
+      <div class="grid2f">
+        <div class="fld"><label>FROM</label><input type="date" id="cost-filter-from" class="ipt"></div>
+        <div class="fld"><label>TO</label><input type="date" id="cost-filter-to" class="ipt"></div>
+      </div>
+      <div class="calc"><span class="cap" style="color:var(--cyan)">PERIOD TOTAL</span><span class="num" id="cost-detail-total" style="font-size:19px;font-weight:800;color:var(--cyan)">₩ 0</span></div>
+      <div id="cost-detail-list" style="display:flex;flex-direction:column;gap:9px"></div>
     </div>
+  </div></div>
 
-    <!-- Recent Activity (구 SYSTEM DIAGNOSTICS) -->
-    <div id="diagnostics-card" class="crosshair-box p-4">
-        <div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-1.5">
-            <h2 class="font-orbitron text-sm font-bold text-slate-800">RECENT ACTIVITY</h2>
-            <button id="btn-open-manage-diag" class="font-mono text-[10px] text-sky-500 hover:text-sky-700 transition-colors">MANAGE_ALL <i class="fa-solid fa-arrow-right ml-1"></i></button>
-        </div>
-        <div id="diagnostics-list" class="flex flex-col">
-            <div class="text-center text-slate-400 font-mono text-sm py-4">LOADING...</div>
-        </div>
+  <!-- EFFICIENCY ANALYSIS -->
+  <div class="overlay" id="m-eff"><div class="modal">
+    <div class="mhead"><h2><span class="m">monitoring</span>EFFICIENCY ANALYSIS</h2><button class="iconbtn" onclick="closeModal('m-eff')"><span class="m">close</span></button></div>
+    <div class="mbody">
+      <div class="statgrid">
+        <div class="stat"><span class="l" style="color:var(--cyan)">AVG</span><span class="v num" id="eff-stat-avg" style="color:var(--cyan)">--</span></div>
+        <div class="stat"><span class="l" style="color:var(--good)">BEST</span><span class="v num" id="eff-stat-best" style="color:var(--good)">--</span></div>
+        <div class="stat"><span class="l" style="color:var(--bad)">WORST</span><span class="v num" id="eff-stat-worst" style="color:var(--bad)">--</span></div>
+        <div class="stat"><span class="l">LAST</span><span class="v num" id="eff-stat-last">--</span></div>
+      </div>
+      <div id="eff-sparkline" style="background:rgba(45,184,222,.05);border:1px solid var(--line);border-radius:11px;padding:9px"></div>
+      <div id="eff-detail-list" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
-</div>
+  </div></div>
 
-<!-- Bottom Action Bar -->
-<div class="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-100 via-slate-50/90 to-transparent z-30 flex justify-center gap-3 max-w-3xl mx-auto w-full">
-    <button id="btn-open-refuel" class="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-orbitron font-bold tracking-widest py-4 rounded-sm shadow-lg shadow-sky-200 transition-all active:scale-95 flex justify-center items-center gap-2">
-        <i class="fa-solid fa-gas-pump"></i> REFUEL
-    </button>
-    <button id="btn-open-service" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-orbitron font-bold tracking-widest py-4 rounded-sm shadow-lg shadow-slate-300 transition-all active:scale-95 flex justify-center items-center gap-2">
-        <i class="fa-solid fa-wrench"></i> SERVICE
-    </button>
-</div>
-
-<!-- z-40: Main Backdrop -->
-<div id="modal-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 opacity-0 pointer-events-none transition-opacity duration-300"></div>
-
-<!-- z-50: REFUEL MODAL -->
-<div id="refuel-modal" class="fixed bottom-0 left-0 right-0 z-50 transform translate-y-full transition-transform duration-300 ease-in-out flex justify-center pointer-events-none">
-    <div class="bg-white/95 backdrop-blur-md w-full max-w-3xl rounded-t-xl border-t border-x border-slate-200 shadow-[0_-10px_40px_-15px_rgba(14,165,233,.3)] p-6 pointer-events-auto max-h-[90vh] overflow-y-auto no-scrollbar">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="font-orbitron text-xl font-bold text-slate-800"><i class="fa-solid fa-gas-pump text-sky-500 mr-2"></i>ENERGY_RECHARGE</h3>
-            <button id="btn-close-refuel" class="text-slate-400 hover:text-slate-700 text-xl"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <form class="space-y-5" onsubmit="event.preventDefault();">
-            <!-- Date: collapsible -->
-            <details id="refuel-date-details" class="border border-slate-100 rounded-sm bg-slate-50/50">
-                <summary class="p-3 cursor-pointer list-none flex justify-between items-center select-none">
-                    <span class="font-orbitron text-[10px] text-slate-400 tracking-widest">DATE &nbsp;<span id="refuel-date-preview" class="text-slate-600 font-mono normal-case text-[10px]">--</span></span>
-                    <i class="fa-solid fa-chevron-down details-chevron text-slate-300 text-[9px]"></i>
-                </summary>
-                <div class="px-3 pb-3">
-                    <input type="date" id="input-refuel-date"
-                        class="w-full bg-white border border-slate-200 rounded-sm p-2.5 font-mono text-sm text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
-                        onchange="document.getElementById('refuel-date-preview').textContent=this.value">
-                </div>
-            </details>
-            <div>
-                <label class="block font-orbitron text-[10px] text-slate-500 tracking-widest mb-1">STATION NAME (OPTIONAL)</label>
-                <input type="text" id="input-station" placeholder="주유소명 (미입력 시 '주유소')" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-sm text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all placeholder-slate-300">
-            </div>
-            <div>
-                <label class="block font-orbitron text-[10px] text-sky-600 tracking-widest mb-1">ODOMETER (KM)</label>
-                <input type="number" id="input-refuel-odo" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-lg text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all">
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block font-orbitron text-[10px] text-slate-500 tracking-widest mb-1">PRICE (KRW/L)</label>
-                    <input type="number" id="input-price" placeholder="1985" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-base text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all">
-                </div>
-                <div>
-                    <label class="block font-orbitron text-[10px] text-slate-500 tracking-widest mb-1">TOTAL COST (KRW)</label>
-                    <input type="number" id="input-cost" placeholder="50000" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-base text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all">
-                </div>
-            </div>
-            <div class="bg-sky-50 border border-sky-100 p-3 rounded-sm flex justify-between items-center">
-                <span class="font-orbitron text-[10px] text-sky-600 tracking-widest">CALCULATED VOLUME</span>
-                <div class="flex items-end gap-1">
-                    <span id="display-volume" class="font-mono text-xl font-bold text-sky-700">0.00</span>
-                    <span class="font-orbitron text-[10px] text-sky-600 mb-1">LITERS</span>
-                </div>
-            </div>
-            <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-sm cursor-pointer hover:bg-slate-50 transition-colors">
-                <div class="relative">
-                    <input type="checkbox" id="input-fulltank" class="sr-only peer" checked>
-                    <div class="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
-                </div>
-                <span class="font-orbitron text-xs text-slate-700 font-bold tracking-wide">FULL TANK OVERRIDE</span>
-            </label>
-            <button id="btn-submit-refuel" class="w-full mt-4 bg-sky-500 hover:bg-sky-600 text-white font-orbitron font-bold tracking-widest py-4 rounded-sm shadow-lg shadow-sky-200 transition-all active:scale-[.98] flex justify-center items-center gap-2">
-                <i class="fa-solid fa-satellite-dish"></i> SYNC_TO_DB
-            </button>
-        </form>
+  <!-- MANAGE_ALL -->
+  <div class="overlay" id="m-manage"><div class="modal" style="height:88dvh">
+    <div class="mhead">
+      <h2><span class="m">database</span>MANAGE_ALL <span id="manage-sync-status" class="num" style="font-size:11px;color:var(--warn);font-weight:600"></span></h2>
+      <button class="iconbtn" onclick="closeModal('m-manage')"><span class="m">close</span></button>
     </div>
-</div>
+    <div style="padding:12px 15px;border-bottom:1px solid var(--line)"><div class="pills">
+      <button class="pill on" id="mf-all" onclick="switchManageFilter('all')">전체</button>
+      <button class="pill" id="mf-service" onclick="switchManageFilter('service')">SERVICE</button>
+      <button class="pill" id="mf-refuel" onclick="switchManageFilter('refuel')">REFUEL</button>
+    </div></div>
+    <div class="mbody" id="manage-content"></div>
+  </div></div>
 
-<!-- z-50: SERVICE MODAL -->
-<div id="service-modal" class="fixed bottom-0 left-0 right-0 z-50 transform translate-y-full transition-transform duration-300 ease-in-out flex justify-center pointer-events-none">
-    <div class="bg-white/95 backdrop-blur-md w-full max-w-3xl rounded-t-xl border-t border-x border-slate-200 shadow-[0_-10px_40px_-15px_rgba(15,23,42,.3)] p-6 pointer-events-auto max-h-[90vh] overflow-y-auto no-scrollbar">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="font-orbitron text-xl font-bold text-slate-800"><i class="fa-solid fa-wrench text-slate-600 mr-2"></i>SYSTEM_MAINTENANCE</h3>
-            <button id="btn-close-service" class="text-slate-400 hover:text-slate-700 text-xl"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="space-y-5">
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block font-orbitron text-[10px] text-sky-600 tracking-widest mb-1">ODOMETER (KM)</label>
-                    <input type="number" id="input-service-odo" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-lg text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all">
-                </div>
-                <div>
-                    <label class="block font-orbitron text-[10px] text-slate-500 tracking-widest mb-1">DATE</label>
-                    <input type="date" id="input-service-date" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-sm text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all">
-                </div>
-            </div>
-            <div>
-                <label class="block font-orbitron text-[10px] text-sky-600 tracking-widest mb-1">SYSTEM MAINTENANCE ITEM</label>
-                <button type="button" id="btn-open-item-selector" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-lg text-slate-800 text-left flex justify-between items-center hover:bg-slate-100 outline-none transition-all">
-                    <div class="flex flex-col">
-                        <span id="selected-item-display" class="text-slate-400 text-sm">선택 대기 중...</span>
-                        <span id="selected-item-code" class="font-orbitron text-[10px] text-sky-600 hidden mt-0.5"></span>
-                    </div>
-                    <i class="fa-solid fa-list-ul text-slate-400"></i>
-                </button>
-                <input type="hidden" id="input-service-item-code">
-                <input type="hidden" id="input-service-item-name">
-            </div>
-            <div>
-                <label class="block font-orbitron text-[10px] text-slate-500 tracking-widest mb-1">TOTAL COST (KRW)</label>
-                <input type="number" id="input-service-cost" placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-base text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all">
-            </div>
-            <div>
-                <label class="block font-orbitron text-[10px] text-slate-500 tracking-widest mb-1">ENGINEER'S LOG (MEMO)</label>
-                <textarea id="input-service-memo" rows="2" placeholder="특이사항 입력..." class="w-full bg-slate-50 border border-slate-200 rounded-sm p-3 font-mono text-sm text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all resize-none"></textarea>
-            </div>
-            <button id="btn-submit-service" class="w-full mt-6 bg-slate-800 hover:bg-slate-900 text-white font-orbitron font-bold tracking-widest py-4 rounded-sm shadow-lg shadow-slate-200 transition-all active:scale-[.98] flex justify-center items-center gap-2">
-                <i class="fa-solid fa-satellite-dish"></i> SYNC_TO_DB
-            </button>
-        </div>
-    </div>
-</div>
+  <!-- SYNC plumbing -->
+  <form id="hidden_form" target="hidden_iframe" method="POST" style="display:none"><input type="hidden" name="payload" id="payload_input"></form>
+  <iframe name="hidden_iframe" style="display:none" onload="if(window.isSaving) onSaveDone();"></iframe>
 
-<!-- z-60/70: ITEM SELECTOR -->
-<div id="item-selector-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] opacity-0 pointer-events-none transition-opacity duration-300"></div>
-<div id="item-selector-modal" class="fixed bottom-0 left-0 right-0 z-[70] transform translate-y-full transition-transform duration-300 ease-in-out flex justify-center pointer-events-none">
-    <div class="bg-white/95 backdrop-blur-md w-full max-w-3xl rounded-t-xl border-t border-x border-slate-200 shadow-[0_-10px_40px_-15px_rgba(2,132,199,.3)] pointer-events-auto h-[85vh] flex flex-col">
-        <div class="flex justify-between items-center p-5 border-b border-slate-200 shrink-0">
-            <h3 class="font-orbitron text-lg font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-database text-sky-600"></i> ITEM_ARCHIVE</h3>
-            <button id="btn-close-item-selector" class="text-slate-400 hover:text-red-500 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50"><i class="fa-solid fa-xmark text-xl"></i></button>
-        </div>
-        <div class="p-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
-            <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400"></i>
-                <input type="text" id="input-item-search" placeholder="항목명, 태그 또는 코드 검색..." class="w-full bg-white border border-slate-200 rounded-sm py-3 pl-10 pr-4 font-mono text-sm text-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all placeholder-slate-300">
-            </div>
-        </div>
-        <div class="flex-1 overflow-y-auto p-4 no-scrollbar" id="item-list-container"></div>
-    </div>
-</div>
-
-<!-- z-75/80: COST DETAIL -->
-<div id="cost-detail-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[75] opacity-0 pointer-events-none transition-opacity duration-300"></div>
-<div id="cost-detail-modal" class="fixed bottom-0 left-0 right-0 z-[80] transform translate-y-full transition-transform duration-300 ease-in-out flex justify-center pointer-events-none">
-    <div class="bg-white/95 backdrop-blur-md w-full max-w-3xl rounded-t-xl border-t border-x border-slate-200 shadow-[0_-10px_40px_-15px_rgba(14,165,233,.2)] p-5 pointer-events-auto max-h-[85vh] flex flex-col">
-        <div class="flex justify-between items-center mb-4 shrink-0">
-            <h3 id="cost-detail-title" class="font-orbitron text-base font-bold text-slate-800"></h3>
-            <button id="btn-close-cost-detail" class="text-slate-400 hover:text-slate-700 text-xl"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <!-- Preset Buttons -->
-        <div class="flex gap-2 mb-3 shrink-0">
-            <button id="preset-month" onclick="setCostPreset('month')" class="font-orbitron text-[9px] tracking-widest px-2.5 py-1.5 rounded-sm bg-sky-500 text-white transition-colors">이번달</button>
-            <button id="preset-year"  onclick="setCostPreset('year')"  class="font-orbitron text-[9px] tracking-widest px-2.5 py-1.5 rounded-sm border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 transition-colors">올해</button>
-            <button id="preset-all"   onclick="setCostPreset('all')"   class="font-orbitron text-[9px] tracking-widest px-2.5 py-1.5 rounded-sm border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 transition-colors">전체</button>
-        </div>
-        <!-- Date Range -->
-        <div class="grid grid-cols-2 gap-3 mb-4 shrink-0">
-            <div>
-                <label class="font-orbitron text-[10px] text-slate-400 tracking-widest block mb-1">FROM</label>
-                <input type="date" id="cost-filter-from" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm outline-none focus:border-sky-500">
-            </div>
-            <div>
-                <label class="font-orbitron text-[10px] text-slate-400 tracking-widest block mb-1">TO</label>
-                <input type="date" id="cost-filter-to" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm outline-none focus:border-sky-500">
-            </div>
-        </div>
-        <div class="bg-sky-50 border border-sky-100 rounded-sm p-3 mb-4 flex justify-between items-center shrink-0">
-            <span class="font-orbitron text-[10px] text-sky-600 tracking-widest">PERIOD TOTAL</span>
-            <span id="cost-detail-total" class="font-mono text-xl font-bold text-sky-700">₩ 0</span>
-        </div>
-        <div id="cost-detail-list" class="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-2"></div>
-    </div>
-</div>
-
-<!-- z-85/90: MANAGE_ALL -->
-<div id="manage-backdrop" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[85] opacity-0 pointer-events-none transition-opacity duration-300"></div>
-<div id="manage-modal" class="fixed bottom-0 left-0 right-0 z-[90] transform translate-y-full transition-transform duration-300 ease-in-out flex justify-center pointer-events-none">
-    <div class="bg-white w-full max-w-3xl h-[95dvh] rounded-t-xl border-t border-x border-slate-200 shadow-[0_-10px_50px_-10px_rgba(0,0,0,.2)] pointer-events-auto flex flex-col">
-        <div class="flex justify-between items-center px-5 py-4 border-b border-slate-200 shrink-0">
-            <div class="flex items-center gap-3">
-                <h3 class="font-orbitron text-sm font-bold text-slate-800"><i class="fa-solid fa-database text-sky-500 mr-2"></i>MANAGE_ALL</h3>
-                <span id="manage-sync-status" class="font-mono text-[10px] text-amber-500 transition-all"></span>
-            </div>
-            <button id="btn-close-manage" class="text-slate-400 hover:text-slate-700 w-8 h-8 flex items-center justify-center">
-                <i class="fa-solid fa-xmark text-xl"></i>
-            </button>
-        </div>
-        <!-- Filter Buttons (replaces tabs) -->
-        <div class="flex gap-2 px-4 py-3 border-b border-slate-200 shrink-0 bg-slate-50">
-            <button id="mf-all"     onclick="switchManageFilter('all')"     class="font-orbitron text-[10px] tracking-widest px-3 py-1.5 rounded-sm bg-sky-500 text-white transition-colors">전체</button>
-            <button id="mf-service" onclick="switchManageFilter('service')" class="font-orbitron text-[10px] tracking-widest px-3 py-1.5 rounded-sm border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 transition-colors bg-white">SERVICE</button>
-            <button id="mf-refuel"  onclick="switchManageFilter('refuel')"  class="font-orbitron text-[10px] tracking-widest px-3 py-1.5 rounded-sm border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 transition-colors bg-white">REFUEL</button>
-        </div>
-        <div id="manage-content" class="flex-1 overflow-y-auto no-scrollbar p-4"></div>
-    </div>
-</div>
-
-<form id="hidden_form" target="hidden_iframe" method="POST" style="display:none;">
-    <input type="hidden" name="payload" id="payload_input">
-</form>
-<iframe name="hidden_iframe" style="display:none;" onload="if(window.isSaving) onSaveSuccess();"></iframe>
+  <!-- LOADER + TOAST -->
+  <div id="load"><div class="skload"><div class="orb"><span class="ring r1"></span><span class="ring r2"></span><span class="ring r3"></span><span class="ring r4"></span></div></div><div id="loadtxt">불러오는 중…</div></div>
+  <div id="toast"></div>
 
 <script>
-/* ==================== CONFIG ==================== */
+/* ==================== CONFIG / DATA ==================== */
 const S_ID  = (typeof CONFIG!=='undefined'&&CONFIG.SHEET_ID) ? CONFIG.SHEET_ID : '';
 const A_URL = (typeof CONFIG!=='undefined'&&CONFIG.API_URL)  ? CONFIG.API_URL  : '';
-
-/* ==================== DATA ==================== */
-let maintenanceItems = [];
-let refuelLogs       = [];
-let serviceLogs      = [];
+const DAY_MS = 86400000;
+const $ = id => document.getElementById(id);
+let maintenanceItems = [], refuelLogs = [], serviceLogs = [];
 let gasPrice = parseInt(localStorage.getItem('stackcar_gas_price')) || 0;
 
-/* ==================== INIT ==================== */
-window.onload = async () => {
-    updateClock();
-    setInterval(updateClock, 1000);
-    setMonthLabels();
-    initGasPriceDisplay();
-    await loadAllDataFromDB();
-    updateDashboard();
-    loadWeather();
-    setTimeout(renderDiagnostics, 200);
-};
+/* ==================== LOADER / RING ENGINE / TOAST ==================== */
+let _busyStart=0,_hideTimer=0; const MIN_BUSY=500;
+function showLoad(t){ clearTimeout(_hideTimer); $('loadtxt').textContent=t||'불러오는 중…'; const l=$('load'); l.classList.remove('hide'); l.style.display='flex'; boostTarget=1; if(!_busyStart)_busyStart=performance.now(); }
+function hideLoad(){ const wait=Math.max(0,MIN_BUSY-(performance.now()-_busyStart)); clearTimeout(_hideTimer);
+  _hideTimer=setTimeout(()=>{ const l=$('load'); l.classList.add('hide'); boostTarget=0; _busyStart=0;
+    setTimeout(()=>{ l.style.display='none'; l.classList.remove('hide'); },420); }, wait); }
+function toast(t){ const e=$('toast'); e.textContent=t; e.classList.add('on'); clearTimeout(e._t); e._t=setTimeout(()=>e.classList.remove('on'),2200); }
+(function(){var m=$('motes');for(var i=0;i<22;i++){var e=document.createElement('i');var z=2.5+Math.random()*5;e.style.left=(Math.random()*100)+'vw';e.style.width=z+'px';e.style.height=z+'px';e.style.animationDuration=(18+Math.random()*18)+'s';e.style.animationDelay=(-Math.random()*30)+'s';m.appendChild(e);}})();
+const ring1=document.querySelector('.runering'), ring2=document.querySelector('.runering2');
+let a1=0,a2=0,boost=0,boostTarget=0,_lastT=0,_rafId=0;
+const RB1=4,RB2=-6.2,RF1=130,RF2=-175;
+function ringFrame(t){ if(!_lastT)_lastT=t; const dt=Math.min((t-_lastT)/1000,.05); _lastT=t;
+  boost += (boostTarget-boost)*(boost<boostTarget?.14:.045);
+  const s1=RB1+(RF1-RB1)*boost, s2=RB2+(RF2-RB2)*boost;
+  a1=(a1+s1*dt)%360; a2=(a2+s2*dt)%360;
+  const f=`drop-shadow(0 0 ${(boost*10).toFixed(1)}px rgba(45,184,222,${(boost*.5).toFixed(2)}))`;
+  if(ring1){ ring1.style.transform=`translate(-50%,-50%) rotate(${a1}deg)`; ring1.style.opacity=.16+boost*.5; ring1.style.filter=f; }
+  if(ring2){ ring2.style.transform=`translate(-50%,-50%) rotate(${a2}deg)`; ring2.style.opacity=.18+boost*.55; ring2.style.filter=f; }
+  _rafId=requestAnimationFrame(ringFrame); }
+_rafId=requestAnimationFrame(ringFrame);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden){ cancelAnimationFrame(_rafId); _rafId=0; _lastT=0; } else if(!_rafId){ _rafId=requestAnimationFrame(ringFrame); } });
 
-let _resizeTimer;
-window.addEventListener('resize', () => {
-    clearTimeout(_resizeTimer);
-    _resizeTimer = setTimeout(renderDiagnostics, 200);
+/* ==================== INIT ==================== */
+window.addEventListener('load', async () => {
+  updateClock(); setInterval(updateClock, 1000);
+  setMonthLabels(); initGasPriceDisplay();
+  showLoad('데이터 동기화 중…');
+  await loadAllDataFromDB();
+  hideLoad();
+  updateDashboard(); renderServiceDue(); loadWeather();
 });
 
-/* ==================== WEATHER (Open-Meteo) ==================== */
-async function loadWeather() {
-    try {
-        const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current=temperature_2m,weather_code&timezone=Asia%2FSeoul');
-        const d = await r.json();
-        const temp = Math.round(d.current.temperature_2m);
-        document.getElementById('weather-temp').textContent = `Seoul, ${temp}\u00b0C`;
-        document.getElementById('weather-icon').className = `fa-solid ${wmoIcon(d.current.weather_code)} text-2xl text-slate-300`;
-    } catch(e) {}
+/* ==================== WEATHER ==================== */
+async function loadWeather(){
+  try{
+    const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current=temperature_2m,weather_code&timezone=Asia%2FSeoul');
+    const d=await r.json(); const temp=Math.round(d.current.temperature_2m);
+    $('weather-temp').textContent=`Seoul, ${temp}°C`;
+    $('weather-icon').textContent=wmoIcon(d.current.weather_code);
+  }catch(e){}
 }
-function wmoIcon(c) {
-    if (c === 0)  return 'fa-sun';
-    if (c <= 2)   return 'fa-cloud-sun';
-    if (c <= 3)   return 'fa-cloud';
-    if (c <= 49)  return 'fa-smog';
-    if (c <= 67)  return 'fa-cloud-rain';
-    if (c <= 77)  return 'fa-snowflake';
-    if (c <= 82)  return 'fa-cloud-showers-heavy';
-    return 'fa-cloud-bolt';
-}
+function wmoIcon(c){ if(c===0)return'sunny'; if(c<=2)return'partly_cloudy_day'; if(c<=3)return'cloud';
+  if(c<=49)return'foggy'; if(c<=67)return'rainy'; if(c<=77)return'weather_snowy'; if(c<=82)return'rainy'; return'thunderstorm'; }
 
 /* ==================== GAS PRICE ==================== */
-function initGasPriceDisplay() {
-    document.getElementById('gas-price-display').textContent =
-        gasPrice > 0 ? `Avg Gas: \u20a9${gasPrice.toLocaleString()}` : 'Avg Gas: \u20a9--';
-}
-function toggleGasEdit() {
-    const area = document.getElementById('gas-edit-area');
-    area.classList.toggle('hidden');
-    if (!area.classList.contains('hidden')) {
-        const inp = document.getElementById('input-gas-price');
-        if (gasPrice > 0) inp.value = gasPrice;
-        inp.focus();
-    }
-}
-function saveGasPrice() {
-    const v = parseInt(document.getElementById('input-gas-price').value);
-    if (v > 0) {
-        gasPrice = v;
-        localStorage.setItem('stackcar_gas_price', v);
-        document.getElementById('gas-price-display').textContent = `Avg Gas: \u20a9${v.toLocaleString()}`;
-    }
-    document.getElementById('gas-edit-area').classList.add('hidden');
-}
+function initGasPriceDisplay(){ $('gas-price-display').textContent = gasPrice>0 ? `Avg Gas: ₩${gasPrice.toLocaleString()}` : 'Avg Gas: ₩--'; }
+function toggleGasEdit(){ const a=$('gas-edit-area'); const show=a.style.display==='none'; a.style.display=show?'flex':'none'; if(show){ if(gasPrice>0)$('input-gas-price').value=gasPrice; $('input-gas-price').focus(); } }
+function saveGasPrice(){ const v=parseInt($('input-gas-price').value); if(v>0){ gasPrice=v; localStorage.setItem('stackcar_gas_price',v); initGasPriceDisplay(); } $('gas-edit-area').style.display='none'; }
 
 /* ==================== DB LOAD ==================== */
-async function loadAllDataFromDB() {
-    if (!S_ID) return;
-    try {
-        let res, parsed;
-        res    = await fetch(`https://docs.google.com/spreadsheets/d/${S_ID}/gviz/tq?tqx=out:csv&sheet=maintenance_items`);
-        parsed = parseCSV(await res.text());
-        if (parsed && parsed.length) {
-            maintenanceItems = parsed.map(r => ({
-                id:             r.id            || '',
-                name:           r.name          || '',
-                tag:            r.tag           || 'ETC',
-                interval_km:    parseFloat(r.interval_km)    || 0,
-                interval_month: parseFloat(r.interval_month) || 0,
-                order:          parseFloat(r.order)          || 99
-            }));
-        }
-        res    = await fetch(`https://docs.google.com/spreadsheets/d/${S_ID}/gviz/tq?tqx=out:csv&sheet=refuel_tx`);
-        parsed = parseCSV(await res.text());
-        if (parsed && parsed.length) refuelLogs = parsed;
-
-        res    = await fetch(`https://docs.google.com/spreadsheets/d/${S_ID}/gviz/tq?tqx=out:csv&sheet=maintenance_history`);
-        parsed = parseCSV(await res.text());
-        if (parsed && parsed.length) serviceLogs = parsed;
-    } catch(e) { console.warn('DB load failed:', e); }
+async function loadAllDataFromDB(){
+  if(!S_ID) return;
+  try{
+    let res,parsed;
+    res=await fetch(`https://docs.google.com/spreadsheets/d/${S_ID}/gviz/tq?tqx=out:csv&sheet=maintenance_items`);
+    parsed=parseCSV(await res.text());
+    if(parsed&&parsed.length){ maintenanceItems=parsed.map(r=>({ id:r.id||'', name:r.name||'', tag:r.tag||'ETC',
+      interval_km:parseFloat(r.interval_km)||0, interval_month:parseFloat(r.interval_month)||0, order:parseFloat(r.order)||99 })); }
+    res=await fetch(`https://docs.google.com/spreadsheets/d/${S_ID}/gviz/tq?tqx=out:csv&sheet=refuel_tx`);
+    parsed=parseCSV(await res.text()); if(parsed&&parsed.length) refuelLogs=parsed;
+    res=await fetch(`https://docs.google.com/spreadsheets/d/${S_ID}/gviz/tq?tqx=out:csv&sheet=maintenance_history`);
+    parsed=parseCSV(await res.text()); if(parsed&&parsed.length) serviceLogs=parsed;
+  }catch(e){ console.warn('DB load failed:',e); }
 }
+async function reloadData(){ $('syncBtn').firstChild.classList.add('spin'); showLoad('동기화 중…');
+  await loadAllDataFromDB(); hideLoad(); updateDashboard(); renderServiceDue(); loadWeather();
+  $('syncBtn').firstChild.classList.remove('spin'); toast('동기화 완료'); }
+
+/* ==================== CALC ==================== */
+function getCurrentOdo(){ const all=[...refuelLogs.map(r=>parseFloat(r.odo)||0),...serviceLogs.map(s=>parseFloat(s.odo)||0)]; return all.length?Math.max(...all):0; }
+function calcCumulativeEfficiency(){
+  const valid=refuelLogs.filter(r=>parseFloat(r.odo)>0&&parseFloat(r.volume)>0).sort((a,b)=>parseFloat(a.odo)-parseFloat(b.odo));
+  if(valid.length<2)return'--';
+  const totalKm=parseFloat(valid[valid.length-1].odo)-parseFloat(valid[0].odo);
+  const totalFuel=valid.slice(1).reduce((s,r)=>s+(parseFloat(r.volume)||0),0);
+  if(!totalFuel||totalKm<=0)return'--'; return(totalKm/totalFuel).toFixed(1);
+}
+function calcLastTripEfficiency(){
+  const valid=refuelLogs.filter(r=>parseFloat(r.odo)>0&&parseFloat(r.volume)>0&&r.is_full_tank==='TRUE').sort((a,b)=>parseFloat(b.odo)-parseFloat(a.odo));
+  if(valid.length<2)return null; const km=parseFloat(valid[0].odo)-parseFloat(valid[1].odo); const fuel=parseFloat(valid[0].volume);
+  if(km<=0||fuel<=0)return null; return(km/fuel).toFixed(1);
+}
+function getRefuelEfficiency(r){
+  const odo=parseFloat(r.odo),vol=parseFloat(r.volume); if(!(odo>0)||!(vol>0))return null;
+  const prev=refuelLogs.filter(x=>parseFloat(x.odo)>0&&parseFloat(x.odo)<odo).sort((a,b)=>parseFloat(b.odo)-parseFloat(a.odo))[0];
+  if(!prev)return null; const km=odo-parseFloat(prev.odo); if(km<=0)return null; return(km/vol).toFixed(1);
+}
+function calcAvgDailyKm(){
+  const valid=refuelLogs.filter(r=>parseFloat(r.odo)>0&&r.date).sort((a,b)=>new Date(a.date)-new Date(b.date)||parseFloat(a.odo)-parseFloat(b.odo));
+  if(valid.length<2)return null; const km=parseFloat(valid[valid.length-1].odo)-parseFloat(valid[0].odo);
+  const days=(new Date(valid[valid.length-1].date)-new Date(valid[0].date))/DAY_MS; if(km<=0||days<=0)return null; return km/days;
+}
+function getMonthCost(logs,y,m){ return logs.filter(r=>{const d=new Date(r.date);return d.getFullYear()===y&&(d.getMonth()+1)===m;}).reduce((s,r)=>s+(parseFloat(r.cost)||0),0); }
 
 /* ==================== DASHBOARD ==================== */
-function getCurrentOdo() {
-    const all = [
-        ...refuelLogs.map(r  => parseFloat(r.odo)  || 0),
-        ...serviceLogs.map(s => parseFloat(s.odo) || 0)
-    ];
-    return all.length ? Math.max(...all) : 0;
+function setMonthLabels(){ const mon=new Date().toLocaleString('en-US',{month:'short'}).toUpperCase()+'.'; $('label-refuel-month').textContent=mon+' REFUEL'; $('label-service-month').textContent=mon+' SERVICE'; }
+function updateDashboard(){
+  const odo=getCurrentOdo(); $('display-odo').textContent = odo>0?odo.toLocaleString():'--';
+  $('display-efficiency').textContent=calcCumulativeEfficiency();
+  const lastEff=calcLastTripEfficiency(); $('display-efficiency-last').textContent=lastEff?`LAST: ${lastEff} KM/L`:'';
+  const now=new Date(),y=now.getFullYear(),m=now.getMonth()+1;
+  $('display-refuel-cost').textContent='₩ '+getMonthCost(refuelLogs,y,m).toLocaleString();
+  $('display-service-cost').textContent='₩ '+getMonthCost(serviceLogs,y,m).toLocaleString();
 }
 
-function calcCumulativeEfficiency() {
-    const valid = refuelLogs
-        .filter(r => parseFloat(r.odo) > 0 && parseFloat(r.volume) > 0)
-        .sort((a,b) => parseFloat(a.odo)-parseFloat(b.odo));
-    if (valid.length < 2) return '--';
-    const totalKm   = parseFloat(valid[valid.length-1].odo) - parseFloat(valid[0].odo);
-    const totalFuel = valid.slice(1).reduce((s,r) => s+(parseFloat(r.volume)||0), 0);
-    if (!totalFuel || totalKm <= 0) return '--';
-    return (totalKm/totalFuel).toFixed(1);
+/* ==================== SERVICE DUE ==================== */
+function computeMaintenanceStatus(){
+  const curOdo=getCurrentOdo(), today=new Date(), avgDaily=calcAvgDailyKm();
+  return maintenanceItems.filter(it=>(it.interval_km>0||it.interval_month>0)).map(it=>{
+    const last=serviceLogs.filter(s=>s.mi_code===it.id).sort((a,b)=>new Date(b.date)-new Date(a.date)||parseFloat(b.odo)-parseFloat(a.odo))[0]||null;
+    let pctKm=null,remainKm=null,pctDate=null,remainDays=null;
+    if(it.interval_km>0&&last&&parseFloat(last.odo)>0){ const used=curOdo-parseFloat(last.odo); remainKm=it.interval_km-used; pctKm=used/it.interval_km; }
+    if(it.interval_month>0&&last&&last.date){ const totalDays=it.interval_month*30.44; const elapsed=(today-new Date(last.date))/DAY_MS; remainDays=totalDays-elapsed; pctDate=elapsed/totalDays; }
+    let pct=null,metric=null;
+    if(pctKm!=null&&pctDate!=null){ if(pctKm>=pctDate){pct=pctKm;metric='km';}else{pct=pctDate;metric='date';} }
+    else if(pctKm!=null){pct=pctKm;metric='km';} else if(pctDate!=null){pct=pctDate;metric='date';}
+    let dueDate=null; const cand=[]; if(remainDays!=null)cand.push(remainDays); if(remainKm!=null&&avgDaily)cand.push(remainKm/avgDaily);
+    if(cand.length)dueDate=new Date(today.getTime()+Math.min(...cand)*DAY_MS);
+    return {item:it,last,pct,metric,remainKm,remainDays,dueDate};
+  }).sort((a,b)=>{ if(a.pct==null&&b.pct==null)return(a.item.order||99)-(b.item.order||99); if(a.pct==null)return 1; if(b.pct==null)return -1; return b.pct-a.pct; });
 }
-
-function calcLastTripEfficiency() {
-    const valid = refuelLogs
-        .filter(r => parseFloat(r.odo) > 0 && parseFloat(r.volume) > 0 && r.is_full_tank === 'TRUE')
-        .sort((a,b) => parseFloat(b.odo)-parseFloat(a.odo));
-    if (valid.length < 2) return null;
-    const km   = parseFloat(valid[0].odo) - parseFloat(valid[1].odo);
-    const fuel = parseFloat(valid[0].volume);
-    if (km <= 0 || fuel <= 0) return null;
-    return (km/fuel).toFixed(1);
-}
-
-function getMonthCost(logs, y, m) {
-    return logs
-        .filter(r => { const d=new Date(r.date); return d.getFullYear()===y && (d.getMonth()+1)===m; })
-        .reduce((s,r) => s+(parseFloat(r.cost)||0), 0);
-}
-
-function setMonthLabels() {
-    const mon = new Date().toLocaleString('en-US',{month:'short'}).toUpperCase()+'.';
-    document.getElementById('label-refuel-month').textContent  = mon+' REFUEL';
-    document.getElementById('label-service-month').textContent = mon+' SERVICE';
-}
-
-function updateDashboard() {
-    const odo = getCurrentOdo();
-    document.getElementById('display-odo').textContent = odo > 0 ? odo.toLocaleString() : '--';
-
-    document.getElementById('display-efficiency').textContent = calcCumulativeEfficiency();
-    const lastEff = calcLastTripEfficiency();
-    document.getElementById('display-efficiency-last').textContent = lastEff ? `LAST: ${lastEff} KM/L` : '';
-
-    const now=new Date(), y=now.getFullYear(), m=now.getMonth()+1;
-    document.getElementById('display-refuel-cost').textContent  = '\u20a9 '+getMonthCost(refuelLogs, y, m).toLocaleString();
-    document.getElementById('display-service-cost').textContent = '\u20a9 '+getMonthCost(serviceLogs,y, m).toLocaleString();
-
-    if (odo > 0) {
-        setOdoWithIndicator('input-refuel-odo',  odo);
-        setOdoWithIndicator('input-service-odo', odo);
+function renderServiceDue(){
+  const c=$('service-due-list'); const stats=computeMaintenanceStatus();
+  if(!stats.length){ c.innerHTML='<div class="empty"><span class="m">task_alt</span>정비 항목 없음</div>'; return; }
+  c.innerHTML=stats.map(s=>{
+    const it=s.item;
+    if(s.pct==null){
+      return `<div class="sdrow" onclick="startServiceForItem('${it.id}')"><div class="sdtop"><div style="display:flex;align-items:center;gap:7px;min-width:0"><span class="chip">${it.tag}</span><span class="sdname" style="color:var(--muted)">${it.name}</span></div><span class="sddue">기록 없음</span></div></div>`;
     }
-}
-
-function setOdoWithIndicator(id, value) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.value = value;
-    el.classList.add('odo-autofill');
-    el.addEventListener('input', () => el.classList.remove('odo-autofill'), {once:true});
-}
-
-/* ==================== DIAGNOSTICS (B안) ==================== */
-function calcMaxDiagItems() {
-    const card = document.getElementById('diagnostics-card');
-    if (!card) return 3;
-    // Absolute page position (scroll-independent)
-    let top = 0, el = card;
-    while (el) { top += el.offsetTop; el = el.offsetParent; }
-    const vh = window.innerHeight;
-    const bottomBarH = 88;
-    const cardOverhead = 52; // p-4 top(16) + header row(28) + pb(8)
-    const available = vh - top - cardOverhead - bottomBarH;
-    return Math.max(0, Math.floor(available / 44));
-}
-
-function renderDiagnostics() {
-    const container = document.getElementById('diagnostics-list');
-    if (!container) return;
-
-    const allLogs = [
-        ...serviceLogs.map(r => ({...r, _type:'service'})),
-        ...refuelLogs.map(r  => ({...r, _type:'refuel'}))
-    ].sort((a,b) => new Date(b.date)-new Date(a.date));
-
-    if (!allLogs.length) {
-        container.innerHTML = '<div class="text-center text-slate-400 font-mono text-sm py-3">데이터 없음</div>';
-        return;
-    }
-
-    const maxItems = calcMaxDiagItems();
-    const items = allLogs.slice(0, maxItems);
-
-    if (!items.length) { container.innerHTML = ''; return; }
-
-    container.innerHTML = items.map(r => {
-        const icon = r._type === 'refuel' ? '\u26fd' : '\ud83d\udd27';
-        const name = r._type === 'refuel' ? (r.station||'\uc8fc\uc720\uc18c') : (r.name||'-');
-        const cost = (parseFloat(r.cost)||0).toLocaleString();
-        return `<div class="flex justify-between items-center py-1.5 border-b border-slate-100 last:border-0">
-            <div class="flex items-center gap-2 min-w-0">
-                <span class="text-sm shrink-0 leading-none">${icon}</span>
-                <div class="min-w-0">
-                    <div class="font-mono text-xs font-bold text-slate-700 truncate">${name}</div>
-                    <div class="font-mono text-[10px] text-slate-400">${r.date||'--'}</div>
-                </div>
-            </div>
-            <div class="font-mono text-xs font-bold ${r._type==='refuel'?'text-sky-600':'text-slate-500'} ml-2 shrink-0">\u20a9${cost}</div>
-        </div>`;
-    }).join('');
+    const clamped=Math.max(0,Math.min(1,s.pct)), pctLabel=Math.round(s.pct*100);
+    const overdue=s.pct>=1, warn=s.pct>=0.8;
+    const col = overdue?'var(--bad)':warn?'var(--warn)':'var(--cyan)';
+    let remainTxt;
+    if(s.metric==='km'){ const km=Math.round(s.remainKm); remainTxt = km>=0?`${km.toLocaleString()}km 남음`:`${Math.abs(km).toLocaleString()}km 초과`; }
+    else { const d=Math.round(s.remainDays); remainTxt = d>=0?`${d}일 남음`:`${Math.abs(d)}일 초과`; }
+    let dueTxt=''; if(s.dueDate){ const dd=s.dueDate; dueTxt=`~${dd.getFullYear()}.${String(dd.getMonth()+1).padStart(2,'0')}.${String(dd.getDate()).padStart(2,'0')} 예상`; }
+    return `<div class="sdrow" onclick="startServiceForItem('${it.id}')">
+      <div class="sdtop">
+        <div style="display:flex;align-items:center;gap:7px;min-width:0"><span class="chip">${it.tag}</span><span class="sdname">${it.name}</span></div>
+        <div><div class="sdremain num" style="color:${col}">${overdue?'⚠ ':''}${remainTxt}</div>${dueTxt?`<div class="sddue num">${dueTxt}</div>`:''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px">
+        <div class="bar"><div style="width:${clamped*100}%;background:${col}"></div></div>
+        <span class="pct num" style="color:${col}">${pctLabel}%</span>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 /* ==================== CLOCK ==================== */
-function updateClock() {
-    const now=new Date();
-    document.getElementById('live-clock').textContent = now.toLocaleTimeString('en-GB',{hour12:false});
-    document.getElementById('live-date').textContent  = now.toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\.\s/g,'.').replace(/\.$/,'');
+function updateClock(){ const now=new Date();
+  $('live-clock').textContent=now.toLocaleTimeString('en-GB',{hour12:false});
+  $('live-date').textContent=now.toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\.\s/g,'.').replace(/\.$/,'');
 }
 
-/* ==================== CSV PARSER ==================== */
-function parseCSV(t) {
-    const rows=[]; let row=[],cur='',q=false;
-    for(let i=0;i<t.length;i++){
-        const c=t[i],nc=t[i+1];
-        if(c==='"'){if(q&&nc==='"'){cur+='"';i++;}else{q=!q;}}
-        else if(c===','&&!q){row.push(cur.replace(/\r/g,'').trim());cur='';}
-        else if(c==='\n'&&!q){row.push(cur.replace(/\r/g,'').trim());rows.push(row);row=[];cur='';}
-        else{cur+=c;}
-    }
-    row.push(cur.replace(/\r/g,'').trim());rows.push(row);
-    if(rows.length<2)return[];
-    const hdrs=rows[0];
-    return rows.slice(1).filter(r=>r.some(v=>v!=='')).map(r=>{const o={};hdrs.forEach((h,i)=>o[h]=r[i]!==undefined?r[i]:'');return o;});
+/* ==================== CSV ==================== */
+function parseCSV(t){ const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<t.length;i++){ const c=t[i],nc=t[i+1];
+    if(c==='"'){if(q&&nc==='"'){cur+='"';i++;}else{q=!q;}}
+    else if(c===','&&!q){row.push(cur.replace(/\r/g,'').trim());cur='';}
+    else if(c==='\n'&&!q){row.push(cur.replace(/\r/g,'').trim());rows.push(row);row=[];cur='';}
+    else{cur+=c;} }
+  row.push(cur.replace(/\r/g,'').trim());rows.push(row);
+  if(rows.length<2)return[]; const hdrs=rows[0];
+  return rows.slice(1).filter(r=>r.some(v=>v!=='')).map(r=>{const o={};hdrs.forEach((h,i)=>o[h]=r[i]!==undefined?r[i]:'');return o;});
 }
 
 /* ==================== SYNC ==================== */
-let currentSyncCallback=null, currentSyncBtn=null, originalSyncBtnHTML='';
-
-function syncDataToCloud(sheetName, data, btnEl, originalHTML, callback) {
-    if (window.isSaving) return;
-    window.isSaving=true; window.syncMode='button';
-    currentSyncBtn=btnEl; currentSyncCallback=callback; originalSyncBtnHTML=originalHTML;
-    if (!A_URL) { setTimeout(onSaveSuccess, 800); return; }
-    document.getElementById('payload_input').value = JSON.stringify({action:'write',sheetName,data});
-    document.getElementById('hidden_form').action  = A_URL;
-    document.getElementById('hidden_form').submit();
+let _saveCb=null, _saveToast='';
+function cloudWrite(sheetName,data,toastMsg,cb){
+  if(window.isSaving)return; window.isSaving=true; _saveCb=cb||null; _saveToast=toastMsg||'저장했습니다';
+  showLoad('동기화 중…');
+  if(!A_URL){ setTimeout(onSaveDone,700); return; }
+  $('payload_input').value=JSON.stringify({action:'write',sheetName,data});
+  $('hidden_form').action=A_URL; $('hidden_form').submit();
+}
+function onSaveDone(){ window.isSaving=false; hideLoad(); if(_saveToast)toast(_saveToast);
+  if(_saveCb){ const cb=_saveCb; _saveCb=null; cb(); }
+  updateDashboard(); renderServiceDue();
+  if($('m-manage').classList.contains('on')) renderManageContent();
 }
 
-function syncManage(sheetName, data) {
-    if (window.isSaving) return;
-    window.isSaving=true; window.syncMode='manage';
-    setManageStatus('SYNCING...');
-    if (!A_URL) {
-        setTimeout(() => {
-            window.isSaving=false;
-            setManageStatus('\u2713 SAVED'); setTimeout(()=>setManageStatus(''),2000);
-            updateDashboard(); renderDiagnostics(); renderManageContent();
-        }, 400);
-        return;
-    }
-    document.getElementById('payload_input').value = JSON.stringify({action:'write',sheetName,data});
-    document.getElementById('hidden_form').action  = A_URL;
-    document.getElementById('hidden_form').submit();
-}
+/* ==================== MODAL HELPERS ==================== */
+function openModal(id){ $(id).classList.add('on'); }
+function closeModal(id){ $(id).classList.remove('on'); }
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('on'); }));
 
-function onSaveSuccess() {
-    window.isSaving=false;
-    const mode=window.syncMode||'button'; window.syncMode=null;
-    if (mode==='manage') {
-        setManageStatus('\u2713 SAVED'); setTimeout(()=>setManageStatus(''),2000);
-        updateDashboard(); renderDiagnostics(); renderManageContent();
-        return;
-    }
-    if (!currentSyncBtn||!currentSyncCallback) return;
-    currentSyncBtn.innerHTML='<i class="fa-solid fa-check"></i> SUCCESS';
-    currentSyncBtn.classList.replace('bg-sky-500','bg-emerald-500');
-    currentSyncBtn.classList.replace('bg-slate-800','bg-emerald-500');
-    setTimeout(()=>{
-        currentSyncCallback();
-        updateDashboard(); renderDiagnostics();
-        setTimeout(()=>{
-            currentSyncBtn.innerHTML=originalSyncBtnHTML;
-            currentSyncBtn.classList.remove('bg-emerald-500');
-            currentSyncBtn.classList.add(currentSyncBtn.id.includes('refuel')?'bg-sky-500':'bg-slate-800');
-        },300);
-    },800);
-}
+/* ==================== FAB ==================== */
+function toggleDial(){ const d=$('dial'); d.classList.toggle('on'); $('fabicon').style.transform=d.classList.contains('on')?'rotate(45deg)':''; }
+function openRefuel(){ toggleDial(); const today=new Date().toISOString().slice(0,10);
+  $('input-refuel-date').value=today; $('refuel-date-preview').textContent=today; $('refuel-date-details').removeAttribute('open');
+  const odo=getCurrentOdo(); if(odo>0)$('input-refuel-odo').value=odo; openModal('m-refuel'); }
+function openService(){ toggleDial(); $('input-service-date').valueAsDate=new Date(); const odo=getCurrentOdo(); if(odo>0)$('input-service-odo').value=odo; openItemSelector(); }
 
-function setManageStatus(text) {
-    const el=document.getElementById('manage-sync-status');
-    if(el){el.textContent=text; el.className='font-mono text-[10px] '+(text.includes('\u2713')?'text-emerald-500':'text-amber-500');}
-}
-
-/* ==================== MAIN MODALS ==================== */
-const backdrop     = document.getElementById('modal-backdrop');
-const refuelModal  = document.getElementById('refuel-modal');
-const serviceModal = document.getElementById('service-modal');
-
-function openModal(modal){
-    backdrop.classList.remove('opacity-0','pointer-events-none');
-    modal.classList.remove('translate-y-full','pointer-events-none');
-}
-function closeAllModals(){
-    backdrop.classList.add('opacity-0','pointer-events-none');
-    refuelModal.classList.add('translate-y-full','pointer-events-none');
-    serviceModal.classList.add('translate-y-full','pointer-events-none');
-}
-
-document.getElementById('btn-open-refuel').addEventListener('click', () => {
-    const today = new Date().toISOString().slice(0,10);
-    document.getElementById('input-refuel-date').value = today;
-    document.getElementById('refuel-date-preview').textContent = today;
-    document.getElementById('refuel-date-details').removeAttribute('open');
-    openModal(refuelModal);
-});
-document.getElementById('btn-close-refuel').addEventListener('click', closeAllModals);
-document.getElementById('btn-open-service').addEventListener('click', () => {
-    document.getElementById('input-service-date').valueAsDate = new Date();
-    openItemSelector();
-});
-document.getElementById('btn-close-service').addEventListener('click', closeAllModals);
-backdrop.addEventListener('click', closeAllModals);
-
-/* ==================== REFUEL LOGIC ==================== */
-const inPrice = document.getElementById('input-price');
-const inCost  = document.getElementById('input-cost');
-const outVol  = document.getElementById('display-volume');
-
-function calcVolume(){
-    const p=parseFloat(inPrice.value), c=parseFloat(inCost.value);
-    outVol.textContent = (p>0&&c>0) ? (c/p).toFixed(2) : '0.00';
-}
-inPrice.addEventListener('input', calcVolume);
-inCost.addEventListener('input',  calcVolume);
-
-document.getElementById('btn-submit-refuel').addEventListener('click', function(){
-    if(!inPrice.value||!inCost.value) return;
-    const logData = {
-        id:          Date.now().toString(),
-        date:        document.getElementById('input-refuel-date').value || new Date().toISOString().slice(0,10),
-        station:     document.getElementById('input-station').value || '\uc8fc\uc720\uc18c',
-        odo:         document.getElementById('input-refuel-odo').value,
-        price:       inPrice.value, cost:inCost.value, volume:outVol.textContent,
-        is_full_tank:document.getElementById('input-fulltank').checked?'TRUE':'FALSE'
-    };
-    refuelLogs.push(logData);
-    const btn=this, orig=btn.innerHTML;
-    btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> SYNCING...';
-    syncDataToCloud('refuel_tx', refuelLogs, btn, orig, () => {
-        closeAllModals();
-        inPrice.value=''; inCost.value=''; outVol.textContent='0.00';
-        document.getElementById('input-station').value='';
-    });
+/* ==================== REFUEL ==================== */
+const inPrice=$('input-price'), inCost=$('input-cost'), outVol=$('display-volume');
+function calcVolume(){ const p=parseFloat(inPrice.value),c=parseFloat(inCost.value); outVol.textContent=(p>0&&c>0)?(c/p).toFixed(2):'0.00'; }
+inPrice.addEventListener('input',calcVolume); inCost.addEventListener('input',calcVolume);
+$('btn-submit-refuel').addEventListener('click',function(){
+  if(!inPrice.value||!inCost.value){ toast('가격과 금액을 입력하세요'); return; }
+  refuelLogs.push({ id:Date.now().toString(), date:$('input-refuel-date').value||new Date().toISOString().slice(0,10),
+    station:$('input-station').value||'주유소', odo:$('input-refuel-odo').value, price:inPrice.value, cost:inCost.value,
+    volume:outVol.textContent, is_full_tank:$('input-fulltank').checked?'TRUE':'FALSE' });
+  cloudWrite('refuel_tx',refuelLogs,'주유기록 저장됨',()=>{ closeModal('m-refuel'); inPrice.value='';inCost.value='';outVol.textContent='0.00';$('input-station').value=''; });
 });
 
 /* ==================== ITEM SELECTOR ==================== */
-const itemSelectorBackdrop = document.getElementById('item-selector-backdrop');
-const itemSelectorModal    = document.getElementById('item-selector-modal');
-const listContainer        = document.getElementById('item-list-container');
-const searchInput          = document.getElementById('input-item-search');
-const displayItemText      = document.getElementById('selected-item-display');
-const displayItemCode      = document.getElementById('selected-item-code');
-const hiddenInputCode      = document.getElementById('input-service-item-code');
-const hiddenInputName      = document.getElementById('input-service-item-name');
-
+const listContainer=$('item-list-container'), searchInput=$('input-item-search');
 function renderItemList(items){
-    if(!items.length){
-        listContainer.className='flex-1 overflow-y-auto p-4 flex items-center justify-center no-scrollbar';
-        listContainer.innerHTML='<div class="text-center text-slate-400 font-mono text-sm">\ub370\uc774\ud130 \uc5c6\uc74c<br><span class="text-[10px]">MANAGE_ALL\uc5d0\uc11c \ud56d\ubaa9\uc744 \uba3c\uc800 \ub4f1\ub85d\ud558\uc138\uc694</span></div>';
-        return;
-    }
-    listContainer.className='flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 content-start no-scrollbar';
-    listContainer.innerHTML='';
-    [...items].sort((a,b)=>(a.order||99)-(b.order||99)).forEach(item=>{
-        const btn=document.createElement('button');
-        btn.className='w-full text-left p-3 border border-slate-200 bg-white rounded-sm hover:border-sky-400 hover:bg-slate-50 transition-all group cursor-pointer flex flex-col gap-1.5';
-        btn.innerHTML=`<div class="flex justify-between items-center w-full pointer-events-none">
-            <span class="font-orbitron text-[9px] text-slate-400 tracking-wider group-hover:text-sky-500 transition-colors">${item.id}</span>
-            <span class="font-orbitron text-[8px] text-slate-500 px-1 py-0.5 bg-slate-100 rounded-sm">${item.tag}</span>
-            </div>
-            <span class="font-mono text-sm font-bold text-slate-800 leading-tight block truncate w-full pointer-events-none">${item.name}</span>`;
-        btn.addEventListener('click', () => {
-            displayItemText.textContent = item.name;
-            displayItemText.classList.replace('text-slate-400','text-slate-800');
-            displayItemText.classList.add('font-bold');
-            displayItemCode.textContent = `CODE: ${item.id}`;
-            displayItemCode.classList.remove('hidden');
-            hiddenInputCode.value = item.id;
-            hiddenInputName.value = item.name;
-            closeItemSelector(); openModal(serviceModal);
-        });
-        listContainer.appendChild(btn);
-    });
+  if(!items.length){ listContainer.innerHTML='<div class="empty" style="grid-column:1/-1"><span class="m">inventory_2</span>데이터 없음<br><span style="font-size:11px">MANAGE_ALL에서 항목을 먼저 등록하세요</span></div>'; return; }
+  listContainer.innerHTML=[...items].sort((a,b)=>(a.order||99)-(b.order||99)).map(it=>
+    `<button class="icard" onclick="pickItem('${it.id}')"><div style="display:flex;justify-content:space-between;align-items:center"><span class="code">${it.id}</span><span class="chip">${it.tag}</span></div><span class="iname">${it.name}</span></button>`).join('');
 }
+function pickItem(id){ const it=maintenanceItems.find(m=>m.id===id); if(!it)return; selectServiceItem(it.id,it.name); closeModal('m-item'); openModal('m-service'); }
+function selectServiceItem(id,name){
+  const t=$('selected-item-display'); t.textContent=name; t.style.color='var(--ink)'; t.style.fontWeight='700';
+  const code=$('selected-item-code'); code.textContent=`CODE: ${id}`; code.style.display='block';
+  $('input-service-item-code').value=id; $('input-service-item-name').value=name;
+}
+function startServiceForItem(id){ const it=maintenanceItems.find(m=>m.id===id); if(!it)return;
+  $('input-service-date').valueAsDate=new Date(); const odo=getCurrentOdo(); if(odo>0)$('input-service-odo').value=odo;
+  selectServiceItem(it.id,it.name); openModal('m-service'); }
+function openItemSelector(){ renderItemList(maintenanceItems); openModal('m-item'); setTimeout(()=>searchInput.focus(),300); }
+$('btn-open-item-selector').addEventListener('click',openItemSelector);
+searchInput.addEventListener('input',e=>{ const t=e.target.value.toLowerCase();
+  renderItemList(maintenanceItems.filter(i=>i.name.toLowerCase().includes(t)||i.id.toLowerCase().includes(t)||i.tag.toLowerCase().includes(t))); });
 
-function openItemSelector(){
-    itemSelectorBackdrop.classList.remove('opacity-0','pointer-events-none');
-    itemSelectorModal.classList.remove('translate-y-full');
-    renderItemList(maintenanceItems);
-    setTimeout(() => searchInput.focus(), 300);
-}
-function closeItemSelector(){
-    itemSelectorBackdrop.classList.add('opacity-0','pointer-events-none');
-    itemSelectorModal.classList.add('translate-y-full');
-    searchInput.value='';
-}
-document.getElementById('btn-open-item-selector').addEventListener('click', openItemSelector);
-document.getElementById('btn-close-item-selector').addEventListener('click', closeItemSelector);
-itemSelectorBackdrop.addEventListener('click', closeItemSelector);
-searchInput.addEventListener('input', e => {
-    const t = e.target.value.toLowerCase();
-    renderItemList(maintenanceItems.filter(i =>
-        i.name.toLowerCase().includes(t)||i.id.toLowerCase().includes(t)||i.tag.toLowerCase().includes(t)));
-});
-
-/* ==================== SERVICE LOGIC ==================== */
-document.getElementById('btn-submit-service').addEventListener('click', function(){
-    if(!hiddenInputCode.value){
-        displayItemText.classList.add('text-red-500');
-        displayItemText.textContent='ERROR: ITEM NOT SELECTED';
-        setTimeout(()=>{displayItemText.classList.remove('text-red-500');displayItemText.textContent='\uc120\ud0dd \ub300\uae30 \uc911...';},1500);
-        return;
-    }
-    const logData = {
-        id:      Date.now().toString(),
-        date:    document.getElementById('input-service-date').value,
-        odo:     document.getElementById('input-service-odo').value,
-        mi_code: hiddenInputCode.value,
-        name:    hiddenInputName.value,
-        cost:    document.getElementById('input-service-cost').value,
-        memo:    document.getElementById('input-service-memo').value
-    };
-    serviceLogs.push(logData);
-    const btn=this, orig=btn.innerHTML;
-    btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> SYNCING...';
-    syncDataToCloud('maintenance_history', serviceLogs, btn, orig, () => {
-        closeAllModals();
-        hiddenInputCode.value=''; hiddenInputName.value='';
-        displayItemText.textContent='\uc120\ud0dd \ub300\uae30 \uc911...';
-        displayItemText.classList.replace('text-slate-800','text-slate-400');
-        displayItemText.classList.remove('font-bold');
-        displayItemCode.classList.add('hidden');
-        document.getElementById('input-service-cost').value='';
-        document.getElementById('input-service-memo').value='';
-    });
+/* ==================== SERVICE SUBMIT ==================== */
+$('btn-submit-service').addEventListener('click',function(){
+  if(!$('input-service-item-code').value){ toast('정비 항목을 선택하세요'); return; }
+  serviceLogs.push({ id:Date.now().toString(), date:$('input-service-date').value, odo:$('input-service-odo').value,
+    mi_code:$('input-service-item-code').value, name:$('input-service-item-name').value, cost:$('input-service-cost').value, memo:$('input-service-memo').value });
+  cloudWrite('maintenance_history',serviceLogs,'정비기록 저장됨',()=>{ closeModal('m-service');
+    $('input-service-item-code').value='';$('input-service-item-name').value='';
+    const t=$('selected-item-display'); t.textContent='선택 대기 중...'; t.style.color='var(--faint)'; t.style.fontWeight='400'; $('selected-item-code').style.display='none';
+    $('input-service-cost').value='';$('input-service-memo').value=''; });
 });
 
 /* ==================== COST DETAIL ==================== */
-let currentCostType = null;
-const costDetailBackdrop = document.getElementById('cost-detail-backdrop');
-const costDetailModal    = document.getElementById('cost-detail-modal');
-
-function openCostDetail(type){
-    currentCostType = type;
-    document.getElementById('cost-detail-title').textContent = type==='refuel' ? '\u26fd REFUEL HISTORY' : '\ud83d\udd27 SERVICE HISTORY';
-    costDetailBackdrop.classList.remove('opacity-0','pointer-events-none');
-    costDetailModal.classList.remove('translate-y-full','pointer-events-none');
-    setCostPreset('month');
+let currentCostType=null;
+function openCostDetail(type){ currentCostType=type; $('cost-detail-title').innerHTML=(type==='refuel'?'<span class="m">local_gas_station</span>REFUEL HISTORY':'<span class="m">build</span>SERVICE HISTORY'); openModal('m-cost'); setCostPreset('month'); }
+function setCostPreset(type){ const now=new Date(),y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0'),from=$('cost-filter-from'),to=$('cost-filter-to');
+  if(type==='month'){ const last=new Date(y,now.getMonth()+1,0).getDate(); from.value=`${y}-${m}-01`; to.value=`${y}-${m}-${String(last).padStart(2,'0')}`; }
+  else if(type==='year'){ from.value=`${y}-01-01`; to.value=`${y}-12-31`; }
+  else { from.value='2000-01-01'; to.value=`${y+1}-12-31`; }
+  ['month','year','all'].forEach(t=>$('preset-'+t).classList.toggle('on',t===type)); renderCostDetail();
 }
-function closeCostDetail(){
-    costDetailBackdrop.classList.add('opacity-0','pointer-events-none');
-    costDetailModal.classList.add('translate-y-full','pointer-events-none');
-}
-
-function setCostPreset(type) {
-    const now=new Date(), y=now.getFullYear(), m=String(now.getMonth()+1).padStart(2,'0');
-    const from=document.getElementById('cost-filter-from');
-    const to  =document.getElementById('cost-filter-to');
-    if (type==='month') {
-        const lastDay=new Date(y,now.getMonth()+1,0).getDate();
-        from.value=`${y}-${m}-01`;
-        to.value  =`${y}-${m}-${String(lastDay).padStart(2,'0')}`;
-    } else if (type==='year') {
-        from.value=`${y}-01-01`;
-        to.value  =`${y}-12-31`;
-    } else {
-        from.value='2000-01-01';
-        to.value  =`${y+1}-12-31`;
-    }
-    ['month','year','all'].forEach(t => {
-        const btn=document.getElementById(`preset-${t}`);
-        if (!btn) return;
-        btn.className = t===type
-            ? 'font-orbitron text-[9px] tracking-widest px-2.5 py-1.5 rounded-sm bg-sky-500 text-white transition-colors'
-            : 'font-orbitron text-[9px] tracking-widest px-2.5 py-1.5 rounded-sm border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 transition-colors';
-    });
-    renderCostDetail();
-}
-
 function renderCostDetail(){
-    const from=new Date(document.getElementById('cost-filter-from').value);
-    const to  =new Date(document.getElementById('cost-filter-to').value);
-    to.setHours(23,59,59,999);
-    const logs = currentCostType==='refuel' ? refuelLogs : serviceLogs;
-    const filtered = logs.filter(r=>{const d=new Date(r.date);return d>=from&&d<=to;}).sort((a,b)=>new Date(b.date)-new Date(a.date));
-    const total = filtered.reduce((s,r)=>s+(parseFloat(r.cost)||0),0);
-    document.getElementById('cost-detail-total').textContent = '\u20a9 '+total.toLocaleString();
-    const list = document.getElementById('cost-detail-list');
-    if(!filtered.length){list.innerHTML='<div class="text-center text-slate-400 font-mono text-sm py-8">\ub370\uc774\ud130 \uc5c6\uc74c</div>';return;}
-    list.innerHTML = filtered.map(r => {
-        if(currentCostType==='refuel'){
-            return`<div class="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-sm">
-                <div class="min-w-0"><div class="font-mono text-xs font-bold text-slate-700">${r.station||'\uc8fc\uc720\uc18c'}</div>
-                <div class="font-mono text-[10px] text-slate-400 truncate">${r.date} \u00b7 ${parseFloat(r.volume||0).toFixed(2)}L \u00b7 ${parseFloat(r.price||0).toLocaleString()}\uc6d0/L \u00b7 ${parseFloat(r.odo||0).toLocaleString()}km</div></div>
-                <div class="font-mono text-sm font-bold text-sky-600 ml-3 shrink-0">\u20a9${parseFloat(r.cost||0).toLocaleString()}</div></div>`;
-        } else {
-            return`<div class="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-sm">
-                <div class="min-w-0"><div class="font-mono text-xs font-bold text-slate-700">${r.name||'-'}</div>
-                <div class="font-mono text-[10px] text-slate-400 truncate">${r.date} \u00b7 ${parseFloat(r.odo||0).toLocaleString()}km${r.memo?' \u00b7 '+r.memo:''}</div></div>
-                <div class="font-mono text-sm font-bold text-slate-600 ml-3 shrink-0">\u20a9${parseFloat(r.cost||0).toLocaleString()}</div></div>`;
-        }
-    }).join('');
+  const from=new Date($('cost-filter-from').value),to=new Date($('cost-filter-to').value); to.setHours(23,59,59,999);
+  const logs=currentCostType==='refuel'?refuelLogs:serviceLogs;
+  const filtered=logs.filter(r=>{const d=new Date(r.date);return d>=from&&d<=to;}).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const total=filtered.reduce((s,r)=>s+(parseFloat(r.cost)||0),0);
+  $('cost-detail-total').textContent='₩ '+total.toLocaleString();
+  const list=$('cost-detail-list');
+  if(!filtered.length){ list.innerHTML='<div class="empty"><span class="m">search_off</span>데이터 없음</div>'; return; }
+  list.innerHTML=filtered.map(r=>{
+    if(currentCostType==='refuel'){ const eff=getRefuelEfficiency(r);
+      return `<div class="scard"><div class="srow"><div style="min-width:0"><div class="sname">${r.station||'주유소'}</div><div class="smeta num">${r.date} · ${parseFloat(r.volume||0).toFixed(2)}L · ${parseFloat(r.price||0).toLocaleString()}원/L · ${parseFloat(r.odo||0).toLocaleString()}km${eff?` · <b style="color:var(--cyan)">${eff}km/L</b>`:''}</div></div><div class="sname num" style="color:var(--cyan)">₩${parseFloat(r.cost||0).toLocaleString()}</div></div></div>`;
+    } else {
+      return `<div class="scard"><div class="srow"><div style="min-width:0"><div class="sname">${r.name||'-'}</div><div class="smeta num">${r.date} · ${parseFloat(r.odo||0).toLocaleString()}km${r.memo?' · '+r.memo:''}</div></div><div class="sname num">₩${parseFloat(r.cost||0).toLocaleString()}</div></div></div>`;
+    }
+  }).join('');
 }
+$('btn-cost-refuel').addEventListener('click',()=>openCostDetail('refuel'));
+$('btn-cost-service').addEventListener('click',()=>openCostDetail('service'));
+$('cost-filter-from').addEventListener('change',renderCostDetail);
+$('cost-filter-to').addEventListener('change',renderCostDetail);
 
-document.getElementById('btn-cost-refuel').addEventListener('click', ()=>openCostDetail('refuel'));
-document.getElementById('btn-cost-service').addEventListener('click', ()=>openCostDetail('service'));
-document.getElementById('btn-close-cost-detail').addEventListener('click', closeCostDetail);
-costDetailBackdrop.addEventListener('click', closeCostDetail);
-document.getElementById('cost-filter-from').addEventListener('change', renderCostDetail);
-document.getElementById('cost-filter-to').addEventListener('change',   renderCostDetail);
+/* ==================== EFFICIENCY ANALYSIS ==================== */
+function getEfficiencySeries(){
+  return refuelLogs.filter(r=>parseFloat(r.odo)>0&&parseFloat(r.volume)>0&&r.date)
+    .sort((a,b)=>new Date(a.date)-new Date(b.date)||parseFloat(a.odo)-parseFloat(b.odo))
+    .map(r=>({date:r.date,station:r.station||'주유소',eff:parseFloat(getRefuelEfficiency(r))})).filter(x=>x.eff>0);
+}
+function buildSparkline(series){
+  if(series.length<2)return'<div class="empty" style="padding:14px 0"><span class="m" style="font-size:24px">show_chart</span>추세 데이터 부족</div>';
+  const W=320,H=56,pad=4; const effs=series.map(s=>s.eff); const min=Math.min(...effs),max=Math.max(...effs),range=(max-min)||1;
+  const pts=series.map((s,i)=>{ const x=pad+(i/(series.length-1))*(W-pad*2); const y=pad+(1-(s.eff-min)/range)*(H-pad*2); return[x,y]; });
+  const line=pts.map(p=>`${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+  const area=`${pad},${H-pad} ${line} ${(W-pad)},${H-pad}`; const last=pts[pts.length-1];
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:56px" preserveAspectRatio="none">
+    <polygon points="${area}" fill="rgba(45,184,222,.12)"/>
+    <polyline points="${line}" fill="none" stroke="#159BC0" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.5" fill="#159BC0"/></svg>`;
+}
+function openEfficiencyDetail(){
+  const series=getEfficiencySeries();
+  if(!series.length){ ['avg','best','worst','last'].forEach(k=>$('eff-stat-'+k).textContent='--'); $('eff-sparkline').innerHTML='';
+    $('eff-detail-list').innerHTML='<div class="empty"><span class="m">monitoring</span>연비 데이터 없음<br><span style="font-size:11px">주유기록이 2건 이상이면 표시됩니다</span></div>'; openModal('m-eff'); return; }
+  const effs=series.map(s=>s.eff); const avg=effs.reduce((a,b)=>a+b,0)/effs.length, best=Math.max(...effs), worst=Math.min(...effs);
+  $('eff-stat-avg').textContent=avg.toFixed(1); $('eff-stat-best').textContent=best.toFixed(1); $('eff-stat-worst').textContent=worst.toFixed(1); $('eff-stat-last').textContent=effs[effs.length-1].toFixed(1);
+  $('eff-sparkline').innerHTML=buildSparkline(series);
+  $('eff-detail-list').innerHTML=[...series].reverse().map(s=>{ const ratio=Math.max(0.08,s.eff/best); const above=s.eff>=avg;
+    return `<div class="scard"><div style="display:flex;align-items:center;gap:10px"><div style="width:96px;min-width:96px"><div class="sname" style="font-size:12.5px">${s.station}</div><div class="smeta num" style="margin-top:1px">${s.date}</div></div><div class="bar"><div style="width:${(ratio*100).toFixed(0)}%;background:${above?'var(--good)':'var(--faint)'}"></div></div><span class="num" style="font-size:13px;font-weight:800;width:62px;text-align:right;color:${above?'var(--good)':'var(--muted)'}">${s.eff.toFixed(1)} km/L</span></div></div>`;
+  }).join('');
+  openModal('m-eff');
+}
+$('btn-efficiency').addEventListener('click',openEfficiencyDetail);
 
 /* ==================== MANAGE_ALL ==================== */
-let currentManageFilter = 'all';
-const manageBackdrop = document.getElementById('manage-backdrop');
-const manageModal    = document.getElementById('manage-modal');
-
-function openManageAll(){
-    manageBackdrop.classList.remove('opacity-0','pointer-events-none');
-    manageModal.classList.remove('translate-y-full','pointer-events-none');
-    renderManageContent();
+let currentManageFilter='all';
+function openManageAll(){ openModal('m-manage'); renderManageContent(); }
+function switchManageFilter(f){ currentManageFilter=f; ['all','service','refuel'].forEach(x=>$('mf-'+x).classList.toggle('on',x===f)); renderManageContent(); }
+function renderManageContent(){ const c=$('manage-content'); if(!c)return;
+  if(currentManageFilter==='service') renderManageList(c,[...serviceLogs].map(r=>({...r,_t:'s'})));
+  else if(currentManageFilter==='refuel') renderManageList(c,[...refuelLogs].map(r=>({...r,_t:'r'})));
+  else renderManageList(c,[...serviceLogs.map(r=>({...r,_t:'s'})),...refuelLogs.map(r=>({...r,_t:'r'}))]);
 }
-function closeManageAll(){
-    manageBackdrop.classList.add('opacity-0','pointer-events-none');
-    manageModal.classList.add('translate-y-full','pointer-events-none');
+function renderManageList(c,arr){
+  arr.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(!arr.length){ c.innerHTML='<div class="empty"><span class="m">inbox</span>데이터 없음</div>'; return; }
+  c.innerHTML=arr.map(r=>r._t==='s'?buildSvcRow(r):buildRefuelRow(r)).join('');
 }
-function switchManageFilter(filter){
-    currentManageFilter = filter;
-    ['all','service','refuel'].forEach(f => {
-        const btn = document.getElementById(`mf-${f}`);
-        if (!btn) return;
-        btn.className = f===filter
-            ? 'font-orbitron text-[10px] tracking-widest px-3 py-1.5 rounded-sm bg-sky-500 text-white transition-colors'
-            : 'font-orbitron text-[10px] tracking-widest px-3 py-1.5 rounded-sm border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 transition-colors bg-white';
-    });
-    renderManageContent();
-}
-function renderManageContent(){
-    const c = document.getElementById('manage-content'); if(!c) return;
-    if      (currentManageFilter==='service') renderManageServiceFull(c);
-    else if (currentManageFilter==='refuel')  renderManageRefuelFull(c);
-    else                                       renderManageAll(c);
-}
-
-/* --- Build row HTML functions --- */
 function buildSvcRow(r){
-    return `<div class="border border-slate-200 rounded-sm mb-3">
-        <div id="view-svc-${r.id}" class="flex justify-between items-start p-3">
-            <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-1.5 mb-0.5">
-                    <span class="font-orbitron text-[8px] px-1 py-0.5 bg-slate-100 text-slate-500 rounded-sm">SVC</span>
-                    <span class="font-mono text-sm font-bold text-slate-800 truncate">${r.name||'-'}</span>
-                </div>
-                <div class="font-mono text-[10px] text-slate-400 mt-0.5">${r.date} \u00b7 ${parseFloat(r.odo||0).toLocaleString()}km \u00b7 \u20a9${parseFloat(r.cost||0).toLocaleString()}${r.memo?' \u00b7 '+r.memo:''}</div>
-            </div>
-            <div class="flex gap-1.5 shrink-0 ml-2">
-                <button onclick="toggleSvcEdit('${r.id}')" class="font-orbitron text-[9px] px-2 py-1 border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 rounded-sm transition-colors">EDIT</button>
-                <button onclick="deleteSvc('${r.id}')" class="font-orbitron text-[9px] px-2 py-1 border border-red-200 text-red-400 hover:bg-red-50 rounded-sm transition-colors">DEL</button>
-            </div>
-        </div>
-        <div id="edit-svc-${r.id}" class="hidden px-3 pb-3 border-t border-slate-100 space-y-2">
-            <div class="grid grid-cols-2 gap-2 pt-3">
-                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">DATE</label>
-                    <input type="date" id="es-date-${r.id}" value="${r.date}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-xs focus:border-sky-500 outline-none"></div>
-                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">ODO (KM)</label>
-                    <input type="number" id="es-odo-${r.id}" value="${r.odo}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-xs focus:border-sky-500 outline-none"></div>
-            </div>
-            <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">COST (KRW)</label>
-                <input type="number" id="es-cost-${r.id}" value="${r.cost}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
-            <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">MEMO</label>
-                <input type="text" id="es-memo-${r.id}" value="${r.memo||''}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
-            <div class="flex gap-2">
-                <button onclick="saveSvcEdit('${r.id}')" class="flex-1 bg-sky-500 text-white font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-sky-600 transition-colors">SAVE</button>
-                <button onclick="toggleSvcEdit('${r.id}')" class="flex-1 bg-slate-100 text-slate-600 font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-slate-200 transition-colors">CANCEL</button>
-            </div>
-        </div>
-    </div>`;
+  return `<div class="scard" style="margin-bottom:10px">
+    <div id="view-svc-${r.id}" class="srow">
+      <div style="min-width:0"><div style="display:flex;align-items:center;gap:6px"><span class="chip">SVC</span><span class="sname">${r.name||'-'}</span></div>
+        <div class="smeta num">${r.date} · ${parseFloat(r.odo||0).toLocaleString()}km · ₩${parseFloat(r.cost||0).toLocaleString()}${r.memo?' · '+r.memo:''}</div></div>
+      <div style="display:flex;gap:6px"><button class="minibtn" onclick="toggleSvcEdit('${r.id}')">EDIT</button><button class="minibtn danger" onclick="deleteSvc('${r.id}')">DEL</button></div>
+    </div>
+    <div id="edit-svc-${r.id}" style="display:none;margin-top:10px;border-top:1px solid var(--line);padding-top:10px;display:none;flex-direction:column;gap:8px">
+      <div class="grid2f"><div class="fld"><label>DATE</label><input type="date" id="es-date-${r.id}" class="ipt" value="${r.date}"></div><div class="fld"><label>ODO</label><input type="number" id="es-odo-${r.id}" class="ipt" value="${r.odo}"></div></div>
+      <div class="fld"><label>COST</label><input type="number" id="es-cost-${r.id}" class="ipt" value="${r.cost}"></div>
+      <div class="fld"><label>MEMO</label><input type="text" id="es-memo-${r.id}" class="ipt" value="${r.memo||''}"></div>
+      <div style="display:flex;gap:8px"><button class="btn btn-dark" style="padding:10px" onclick="saveSvcEdit('${r.id}')">SAVE</button><button class="btn btn-ghost" style="padding:10px" onclick="toggleSvcEdit('${r.id}')">CANCEL</button></div>
+    </div></div>`;
 }
-
-function buildRefuelRow(r){
-    return `<div class="border border-slate-200 rounded-sm mb-3">
-        <div id="view-rfuel-${r.id}" class="flex justify-between items-start p-3">
-            <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-1.5 mb-0.5">
-                    <span class="font-orbitron text-[8px] px-1 py-0.5 bg-sky-50 text-sky-500 rounded-sm">FUEL</span>
-                    <span class="font-mono text-sm font-bold text-slate-800 truncate">${r.station||'\uc8fc\uc720\uc18c'}</span>
-                </div>
-                <div class="font-mono text-[10px] text-slate-400 mt-0.5">${r.date} \u00b7 ${parseFloat(r.odo||0).toLocaleString()}km \u00b7 ${parseFloat(r.volume||0).toFixed(2)}L \u00b7 \u20a9${parseFloat(r.cost||0).toLocaleString()}</div>
-            </div>
-            <div class="flex gap-1.5 shrink-0 ml-2">
-                <button onclick="toggleRefuelEdit('${r.id}')" class="font-orbitron text-[9px] px-2 py-1 border border-slate-200 text-slate-500 hover:border-sky-400 hover:text-sky-600 rounded-sm transition-colors">EDIT</button>
-                <button onclick="deleteRefuel('${r.id}')" class="font-orbitron text-[9px] px-2 py-1 border border-red-200 text-red-400 hover:bg-red-50 rounded-sm transition-colors">DEL</button>
-            </div>
-        </div>
-        <div id="edit-rfuel-${r.id}" class="hidden px-3 pb-3 border-t border-slate-100 space-y-2">
-            <div class="grid grid-cols-2 gap-2 pt-3">
-                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">DATE</label>
-                    <input type="date" id="er-date-${r.id}" value="${r.date}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-xs focus:border-sky-500 outline-none"></div>
-                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">ODO (KM)</label>
-                    <input type="number" id="er-odo-${r.id}" value="${r.odo}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-xs focus:border-sky-500 outline-none"></div>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">STATION</label>
-                    <input type="text" id="er-station-${r.id}" value="${r.station||'\uc8fc\uc720\uc18c'}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
-                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">PRICE (\uc6d0/L)</label>
-                    <input type="number" id="er-price-${r.id}" value="${r.price||''}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">VOLUME (L)</label>
-                    <input type="number" id="er-volume-${r.id}" value="${r.volume||''}" step="0.01" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
-                <div><label class="font-orbitron text-[9px] text-slate-400 block mb-0.5">COST (KRW)</label>
-                    <input type="number" id="er-cost-${r.id}" value="${r.cost||''}" class="w-full bg-slate-50 border border-slate-200 rounded-sm p-2 font-mono text-sm focus:border-sky-500 outline-none"></div>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="saveRefuelEdit('${r.id}')" class="flex-1 bg-sky-500 text-white font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-sky-600 transition-colors">SAVE</button>
-                <button onclick="toggleRefuelEdit('${r.id}')" class="flex-1 bg-slate-100 text-slate-600 font-orbitron text-[9px] tracking-widest py-2 rounded-sm hover:bg-slate-200 transition-colors">CANCEL</button>
-            </div>
-        </div>
-    </div>`;
+function buildRefuelRow(r){ const eff=getRefuelEfficiency(r);
+  return `<div class="scard" style="margin-bottom:10px">
+    <div id="view-rfuel-${r.id}" class="srow">
+      <div style="min-width:0"><div style="display:flex;align-items:center;gap:6px"><span class="chip" style="color:var(--cyan);background:rgba(45,184,222,.12)">FUEL</span><span class="sname">${r.station||'주유소'}</span></div>
+        <div class="smeta num">${r.date} · ${parseFloat(r.odo||0).toLocaleString()}km · ${parseFloat(r.volume||0).toFixed(2)}L · ₩${parseFloat(r.cost||0).toLocaleString()}${eff?` · <b style="color:var(--cyan)">${eff} km/L</b>`:''}</div></div>
+      <div style="display:flex;gap:6px"><button class="minibtn" onclick="toggleRefuelEdit('${r.id}')">EDIT</button><button class="minibtn danger" onclick="deleteRefuel('${r.id}')">DEL</button></div>
+    </div>
+    <div id="edit-rfuel-${r.id}" style="display:none;margin-top:10px;border-top:1px solid var(--line);padding-top:10px;flex-direction:column;gap:8px">
+      <div class="grid2f"><div class="fld"><label>DATE</label><input type="date" id="er-date-${r.id}" class="ipt" value="${r.date}"></div><div class="fld"><label>ODO</label><input type="number" id="er-odo-${r.id}" class="ipt" value="${r.odo}"></div></div>
+      <div class="grid2f"><div class="fld"><label>STATION</label><input type="text" id="er-station-${r.id}" class="ipt" value="${r.station||'주유소'}"></div><div class="fld"><label>PRICE</label><input type="number" id="er-price-${r.id}" class="ipt" value="${r.price||''}"></div></div>
+      <div class="grid2f"><div class="fld"><label>VOLUME</label><input type="number" id="er-volume-${r.id}" step="0.01" class="ipt" value="${r.volume||''}"></div><div class="fld"><label>COST</label><input type="number" id="er-cost-${r.id}" class="ipt" value="${r.cost||''}"></div></div>
+      <div style="display:flex;gap:8px"><button class="btn btn-dark" style="padding:10px" onclick="saveRefuelEdit('${r.id}')">SAVE</button><button class="btn btn-ghost" style="padding:10px" onclick="toggleRefuelEdit('${r.id}')">CANCEL</button></div>
+    </div></div>`;
 }
-
-function renderManageAll(c){
-    const all = [
-        ...serviceLogs.map(r=>({...r,_type:'service'})),
-        ...refuelLogs.map(r =>({...r,_type:'refuel'}))
-    ].sort((a,b)=>new Date(b.date)-new Date(a.date));
-    if(!all.length){c.innerHTML='<div class="text-center text-slate-400 font-mono text-sm py-8">\ub370\uc774\ud130 \uc5c6\uc74c</div>';return;}
-    c.innerHTML = all.map(r=>r._type==='service'?buildSvcRow(r):buildRefuelRow(r)).join('');
-}
-function renderManageServiceFull(c){
-    if(!serviceLogs.length){c.innerHTML='<div class="text-center text-slate-400 font-mono text-sm py-8">\ub370\uc774\ud130 \uc5c6\uc74c</div>';return;}
-    c.innerHTML=[...serviceLogs].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(r=>buildSvcRow(r)).join('');
-}
-function renderManageRefuelFull(c){
-    if(!refuelLogs.length){c.innerHTML='<div class="text-center text-slate-400 font-mono text-sm py-8">\ub370\uc774\ud130 \uc5c6\uc74c</div>';return;}
-    c.innerHTML=[...refuelLogs].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(r=>buildRefuelRow(r)).join('');
-}
-
-/* --- Edit/Delete handlers --- */
-function toggleSvcEdit(id){
-    document.getElementById(`view-svc-${id}`)?.classList.toggle('hidden');
-    document.getElementById(`edit-svc-${id}`)?.classList.toggle('hidden');
-}
-function saveSvcEdit(id){
-    const idx=serviceLogs.findIndex(s=>s.id===id); if(idx===-1)return;
-    serviceLogs[idx]={...serviceLogs[idx],
-        date:document.getElementById(`es-date-${id}`)?.value ||serviceLogs[idx].date,
-        odo: document.getElementById(`es-odo-${id}`)?.value  ||serviceLogs[idx].odo,
-        cost:document.getElementById(`es-cost-${id}`)?.value ||serviceLogs[idx].cost,
-        memo:document.getElementById(`es-memo-${id}`)?.value ||''
-    };
-    syncManage('maintenance_history',serviceLogs);
-}
-function deleteSvc(id){
-    if(!confirm('\uc774 \uc815\ube44\uae30\ub85d\uc744 \uc0ad\uc81c\ud560\uae4c\uc694?'))return;
-    serviceLogs=serviceLogs.filter(s=>s.id!==id);
-    syncManage('maintenance_history',serviceLogs);
-}
-function toggleRefuelEdit(id){
-    document.getElementById(`view-rfuel-${id}`)?.classList.toggle('hidden');
-    document.getElementById(`edit-rfuel-${id}`)?.classList.toggle('hidden');
-}
-function saveRefuelEdit(id){
-    const idx=refuelLogs.findIndex(r=>r.id===id); if(idx===-1)return;
-    refuelLogs[idx]={...refuelLogs[idx],
-        date:   document.getElementById(`er-date-${id}`)?.value   ||refuelLogs[idx].date,
-        odo:    document.getElementById(`er-odo-${id}`)?.value    ||refuelLogs[idx].odo,
-        station:document.getElementById(`er-station-${id}`)?.value||refuelLogs[idx].station,
-        price:  document.getElementById(`er-price-${id}`)?.value  ||refuelLogs[idx].price,
-        volume: document.getElementById(`er-volume-${id}`)?.value ||refuelLogs[idx].volume,
-        cost:   document.getElementById(`er-cost-${id}`)?.value   ||refuelLogs[idx].cost
-    };
-    syncManage('refuel_tx',refuelLogs);
-}
-function deleteRefuel(id){
-    if(!confirm('\uc774 \uc8fc\uc720\uae30\ub85d\uc744 \uc0ad\uc81c\ud560\uae4c\uc694?'))return;
-    refuelLogs=refuelLogs.filter(r=>r.id!==id);
-    syncManage('refuel_tx',refuelLogs);
-}
-
-/* MANAGE_ALL event listeners */
-document.getElementById('btn-close-manage').addEventListener('click', closeManageAll);
-manageBackdrop.addEventListener('click', closeManageAll);
-document.getElementById('btn-open-manage-diag').addEventListener('click', openManageAll);
+function toggleSvcEdit(id){ const v=$('view-svc-'+id),e=$('edit-svc-'+id); const open=e.style.display!=='flex'; e.style.display=open?'flex':'none'; v.style.display=open?'none':'flex'; }
+function saveSvcEdit(id){ const idx=serviceLogs.findIndex(s=>s.id===id); if(idx===-1)return;
+  serviceLogs[idx]={...serviceLogs[idx], date:$('es-date-'+id).value||serviceLogs[idx].date, odo:$('es-odo-'+id).value||serviceLogs[idx].odo, cost:$('es-cost-'+id).value||serviceLogs[idx].cost, memo:$('es-memo-'+id).value||''};
+  cloudWrite('maintenance_history',serviceLogs,'수정됨'); }
+function deleteSvc(id){ if(!confirm('이 정비기록을 삭제할까요?'))return; serviceLogs=serviceLogs.filter(s=>s.id!==id); cloudWrite('maintenance_history',serviceLogs,'삭제됨'); }
+function toggleRefuelEdit(id){ const v=$('view-rfuel-'+id),e=$('edit-rfuel-'+id); const open=e.style.display!=='flex'; e.style.display=open?'flex':'none'; v.style.display=open?'none':'flex'; }
+function saveRefuelEdit(id){ const idx=refuelLogs.findIndex(r=>r.id===id); if(idx===-1)return;
+  refuelLogs[idx]={...refuelLogs[idx], date:$('er-date-'+id).value||refuelLogs[idx].date, odo:$('er-odo-'+id).value||refuelLogs[idx].odo, station:$('er-station-'+id).value||refuelLogs[idx].station, price:$('er-price-'+id).value||refuelLogs[idx].price, volume:$('er-volume-'+id).value||refuelLogs[idx].volume, cost:$('er-cost-'+id).value||refuelLogs[idx].cost};
+  cloudWrite('refuel_tx',refuelLogs,'수정됨'); }
+function deleteRefuel(id){ if(!confirm('이 주유기록을 삭제할까요?'))return; refuelLogs=refuelLogs.filter(r=>r.id!==id); cloudWrite('refuel_tx',refuelLogs,'삭제됨'); }
+$('btn-open-manage-diag').addEventListener('click',openManageAll);
 </script>
 </body>
 </html>
